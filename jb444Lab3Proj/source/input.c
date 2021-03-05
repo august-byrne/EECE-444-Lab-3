@@ -129,22 +129,19 @@ static void inKeyTask(void *p_arg){
 
 static void inLevelTask(void *p_arg){
 
+	INT8U tsense = 0;
 	(void)p_arg;
 
 	while(1){
-	//handles all TSI scanning
-	//static void SensorTask(void){
-		DB3_TURN_ON();
-		OSMutexPend(&TSI, 0, OS_OPT_PEND_BLOCKING, (CPU_TS *)0, &os_err);
-		TSITask();
-		TSIFlagsValue = TSIGetSensorFlags();
-		OSMutexPost(&appTimerCntrKey, OS_OPT_POST_NONE, &os_err);
-		DB3_TURN_OFF();
-	//}
+		//handles all TSI scanning
+		tsense=TSIPend(0, &os_err);
+		if (tsense == ){
+
+		}else if (tsense == ){
+
+		}else{}
+		}
 	}
-
-
-}
 
 
 

@@ -2,6 +2,7 @@
  * Todd Morton, 11/18/2014
  * Todd Morton, 11/19/2018 MCUXpresso version
  * Todd Morton, 11/17/2020 MCUX11.2 version
+ * August Byrne, 3/4/2021 uCOS version with TSIPend
  */
 #include "MCUType.h"
 #include "K65TWR_GPIO.h"
@@ -32,6 +33,8 @@ static TOUCH_LEVEL_T tsiSensorLevels[MAX_NUM_ELECTRODES];
 static void tsiStartScan(INT8U channel);
 static void tsiProcScan(INT8U channel);
 static TSI_BUFFER tsiBuffer;
+static INT16U tsiSensorFlags = 0;
+
 /**********************************************************************************
 * Allocate task control blocks
 **********************************************************************************/
@@ -161,16 +164,14 @@ static void tsiProcScan(INT8U channel){
 
     /* Process electrode 1 */
     if((INT16U)(TSI0->DATA & TSI_DATA_TSICNT_MASK) > tsiSensorLevels[channel].threshold){
-    	if(tsiBuffer.buffer != (INT16U)(1<<channel)){
-    		tsiBuffer.buffer = (INT16U)(1<<channel);	//was |=
-    		(void)OSSemPost(&(tsiBuffer.flag), OS_OPT_POST_1, &os_err);   /* Signal new data in buffer */
-    	}else{}
+    	tsiSensorFlags |= (INT16U)(1<<channel);
     }else{
-    	if(tsiBuffer.buffer == (INT16U)(1<<channel)){
-    		tsiBuffer.buffer = (INT16U)~(1<<channel);	//was &=
-    		(void)OSSemPost(&(tsiBuffer.flag), OS_OPT_POST_1, &os_err);   /* Signal new data in buffer */
-    	}else{}
+    	tsiSensorFlags &= (INT16U)(1<<channel);
     }
+	if(tsiBuffer.buffer != tsiSensorFlags){
+		tsiBuffer.buffer = tsiSensorFlags;	//was &=
+		(void)OSSemPost(&(tsiBuffer.flag), OS_OPT_POST_1, &os_err);   /* Signal new data in buffer */
+	}else{}
 
 }
 
