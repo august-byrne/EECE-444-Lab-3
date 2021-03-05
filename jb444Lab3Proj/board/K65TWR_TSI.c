@@ -28,7 +28,7 @@ typedef struct{
 #define TSI0_DISABLE()   TSI0->GENCS &= ~TSI_GENCS_TSIEN_MASK
 
 INT16U TSIPend(INT16U tout, OS_ERR *os_err);
-
+static void TSITask(void *p_arg);
 static TOUCH_LEVEL_T tsiSensorLevels[MAX_NUM_ELECTRODES];
 static void tsiStartScan(INT8U channel);
 static void tsiProcScan(INT8U channel);
@@ -111,12 +111,14 @@ void TSIChCalibration(INT8U channel){
  *            In order to not block the task period should be > 5ms.
  *            To not miss a press, the task period should be < ~25ms.
   ********************************************************************************/
-void TSITask(void){
+void TSITask(void *p_arg){
 
     static TSI_TASK_STATE_T tsiTaskState = PROC1START2;
-
+    (void)p_arg;
     while(1){
-
+		//DB1_TURN_OFF();                             /* Turn off debug bit while waiting */
+		OSTimeDly(8,OS_OPT_TIME_PERIODIC,&os_err);     /* Task period = 10ms   */
+		//DB1_TURN_ON();                          /* Turn on debug bit while ready/running*/
 		tsiStartScan(BRD_PAD1_CH);
 
 		DB2_TURN_ON();
@@ -176,8 +178,7 @@ static void tsiProcScan(INT8U channel){
 }
 
 /********************************************************************************
- *   TSIPend: Returns value of sensor flag variable and clears it
- *                      to receive sensor press only one time.
+ *   TSIPend: Pends on sensor flag, and returns value of semaphore buffer
  ********************************************************************************/
 INT16U TSIPend(INT16U tout, OS_ERR *os_err){
     OSSemPend(&(tsiBuffer.flag),tout, OS_OPT_PEND_BLOCKING, (CPU_TS *)0, os_err);
