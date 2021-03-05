@@ -7,12 +7,12 @@
 
 #ifndef INPUT_H_
 #define INPUT_H_
-#define KEY_LEN
+#define KEY_LEN 5
 
 typedef enum {SINEWAVE_MODE, PULSETRAIN_MODE, WAITING_MODE} STATE;
 
 typedef struct {
-	INT8C buffer[KEY_LEN-1];
+	INT8C buffer[KEY_LEN];
 	OS_SEM flag;
 } KEY_BUFFER;
 

@@ -4,9 +4,12 @@
  * Todd Morton, 11/17/2020 MCUX11.2 version
  * August Byrne, 3/4/2021 uCOS version with TSIPend
  */
+
 #include "MCUType.h"
-#include "K65TWR_GPIO.h"
+#include "app_cfg.h"
+#include "os.h"
 #include "K65TWR_TSI.h"
+#include "k65TWR_GPIO.h"
 
 typedef enum {PROC1START2, PROC2START1} TSI_TASK_STATE_T;
 typedef struct{
@@ -32,6 +35,7 @@ static void TSITask(void *p_arg);
 static TOUCH_LEVEL_T tsiSensorLevels[MAX_NUM_ELECTRODES];
 static void tsiStartScan(INT8U channel);
 static void tsiProcScan(INT8U channel);
+static void TSIChCalibration(INT8U channel);
 static TSI_BUFFER tsiBuffer;
 static INT16U tsiSensorFlags = 0;
 
@@ -50,6 +54,8 @@ static CPU_STK tsiTaskStk[APP_CFG_TSI_TASK_STK_SIZE];
  *    -
  ********************************************************************************/
 void TSIInit(void){
+
+	OS_ERR os_err;
 
     SIM->SCGC5 |= SIM_SCGC5_TSI(1);         //Turn on clock to TSI module
     SIM->SCGC5 |= SIM_SCGC5_PORTB(1);
@@ -75,7 +81,7 @@ void TSIInit(void){
     //Create the key task
     OSTaskCreate((OS_TCB     *)&tsiTaskTCB,
                 (CPU_CHAR   *)"uCOS tsi Task ",
-                (OS_TASK_PTR ) tsiTask,
+                (OS_TASK_PTR ) TSITask,
                 (void       *) 0,
                 (OS_PRIO     ) APP_CFG_TSI_TASK_PRIO,
                 (CPU_STK    *)&tsiTaskStk[0],
@@ -95,7 +101,7 @@ void TSIInit(void){
  *                   channel - the channel to calibrate, range 0-15
  *                   Note - the sensor must not be pressed when this is executed.
  ********************************************************************************/
-void TSIChCalibration(INT8U channel){
+static void TSIChCalibration(INT8U channel){
         tsiStartScan(channel);
         while((TSI0->GENCS & TSI_GENCS_EOSF_MASK) == 0){} //wait for scan to finish
         TSI0->GENCS |= TSI_GENCS_EOSF(1);    //Clear flag
@@ -112,6 +118,8 @@ void TSIChCalibration(INT8U channel){
  *            To not miss a press, the task period should be < ~25ms.
   ********************************************************************************/
 void TSITask(void *p_arg){
+
+	OS_ERR os_err;
 
     static TSI_TASK_STATE_T tsiTaskState = PROC1START2;
     (void)p_arg;
@@ -161,6 +169,8 @@ static void tsiStartScan(INT8U channel){
  ********************************************************************************/
 static void tsiProcScan(INT8U channel){
 
+	OS_ERR os_err;
+
     while((TSI0->GENCS & TSI_GENCS_EOSF_MASK) == 0){}
     TSI0->GENCS |= TSI_GENCS_EOSF(1);    //Clear flag
 
@@ -171,7 +181,7 @@ static void tsiProcScan(INT8U channel){
     	tsiSensorFlags &= (INT16U)(1<<channel);
     }
 	if(tsiBuffer.buffer != tsiSensorFlags){
-		tsiBuffer.buffer = tsiSensorFlags;	//was &=
+		tsiBuffer.buffer = tsiSensorFlags;
 		(void)OSSemPost(&(tsiBuffer.flag), OS_OPT_POST_1, &os_err);   /* Signal new data in buffer */
 	}else{}
 
