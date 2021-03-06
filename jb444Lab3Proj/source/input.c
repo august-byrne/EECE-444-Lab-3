@@ -1,8 +1,8 @@
 /*
  * input.c
- *  This all of the input of the software
+ *  This is all of the input for the function generator of EECE444 Lab 3
  *  Created on: Mar 3, 2021
- *  Lasted Edited On: Mar 5 2021
+ *  Lasted Edited On: Mar 6 2021
  *      Author: August Byrne
  */
 #include "app_cfg.h"
@@ -12,12 +12,11 @@
 #include "K65TWR_GPIO.h"
 #include "K65TWR_TSI.h"
 #include "uCOSKey.h"
+#include "input.h"
 
 /*****************************************************************************************
 * Variable Defines Here
 *****************************************************************************************/
-#define KEY_LEN 5
-typedef enum {SINEWAVE_MODE, PULSETRAIN_MODE, WAITING_MODE} STATE;
 
 /*****************************************************************************************
 * Allocate task control blocks
@@ -42,27 +41,10 @@ static void inLevelTask(void *p_arg);
 /*****************************************************************************************
  * Mutex & Semaphores
 *****************************************************************************************/
-typedef struct {
-	INT8U buffer[KEY_LEN];
-	OS_SEM flag;
-	OS_SEM enter;
-} KEY_BUFFER;
 static KEY_BUFFER inKeyBuffer;
-
-typedef struct{
-    INT8U buffer;
-    OS_SEM flag;
-}TSI_BUFFER;
 static TSI_BUFFER inLevBuffer;
-
-typedef struct{
-    STATE buffer;
-    OS_SEM flag;
-}CTRL_STATE;
 static CTRL_STATE CtrlState;
 
-static INT8U kchar = 0;
-static INT8U tsense = 0;
 /*****************************************************************************************
 * input()
 *****************************************************************************************/
@@ -70,6 +52,9 @@ static INT8U tsense = 0;
 //inputInit – Executes all required initialization for the resources in input.c
 void inputInit(void){
 	OS_ERR os_err;
+
+	TSIInit();
+	KeyInit();
 
 	OSSemCreate(&(CtrlState.flag),"Key Press Buffer",0,&os_err);
 	CtrlState.buffer = WAITING_MODE;
@@ -80,8 +65,7 @@ void inputInit(void){
 	}
 	OSSemCreate(&(inLevBuffer.flag),"Touch Sensor Buffer",0,&os_err);
 	inLevBuffer.buffer = 0;
-	while(os_err != OS_ERR_NONE){           /* Error Trap                           */
-    }
+
 	OSTaskCreate(&InKeyTaskTCB,                  /* Create Key Task                    */
 				"InKeyTask ",
 				inKeyTask,
@@ -115,14 +99,14 @@ void inputInit(void){
 static void inKeyTask(void *p_arg){
 	OS_ERR os_err;
 
-	//INT8U kchar = 0;
+	INT8U kchar = 0;
 	(void)p_arg;
 
 	while(1){
 		DB3_TURN_OFF();
 		kchar = KeyPend(0, &os_err);
 		switch (kchar){
-		case 'a':		//CtrlState semaphore to sine wave mode
+		case DC1:		//'A' changes CtrlState semaphore to sine wave mode
 			for (int i = 0; i < KEY_LEN; i++){
 				inKeyBuffer.buffer[i] = 0;
 			}
@@ -130,7 +114,7 @@ static void inKeyTask(void *p_arg){
 			CtrlState.buffer = SINEWAVE_MODE;
 			OSSemPost(&(CtrlState.flag),OS_OPT_POST_NONE,&os_err);
 		break;
-		case 'b':		//CtrlState semaphore to square wave mode
+		case DC2:		//'B' changes CtrlState semaphore to square wave mode
 			for (int i = 0; i < KEY_LEN; i++){
 				inKeyBuffer.buffer[i] = 0;
 			}
@@ -138,7 +122,7 @@ static void inKeyTask(void *p_arg){
 			CtrlState.buffer = PULSETRAIN_MODE;
 			OSSemPost(&(CtrlState.flag),OS_OPT_POST_NONE,&os_err);
 		break;
-		case 'c':		//CtrlState semaphore to square wave mode
+		case DC3:		//'C' changes CtrlState semaphore to square wave mode
 			for (int i = 0; i < KEY_LEN; i++){
 				inKeyBuffer.buffer[i] = 0;
 			}
@@ -146,22 +130,20 @@ static void inKeyTask(void *p_arg){
 			CtrlState.buffer = WAITING_MODE;
 			OSSemPost(&(CtrlState.flag),OS_OPT_POST_NONE,&os_err);
 		break;
-		case 'd':		//remove the last number from the freq semaphore
-			if (inKeyBuffer.buffer != 0 && inKeyBuffer.buffer[KEY_LEN-1] != '#'){	//is not empty
-				for (int i = 0; i < KEY_LEN-1; i++){
-					inKeyBuffer.buffer[i] = inKeyBuffer.buffer[i+1];
-				}
-				inKeyBuffer.buffer[KEY_LEN-1] = 0;
-				OSSemPost(&(inKeyBuffer.flag),OS_OPT_POST_NONE,&os_err);
-			}else{}
+		case DC4:		//'D' removes the last number from the freq semaphore
+			for (int i = 0; i < KEY_LEN-1; i++){
+				inKeyBuffer.buffer[i] = inKeyBuffer.buffer[i+1];
+			}
+			inKeyBuffer.buffer[KEY_LEN-1] = 0;
+			OSSemPost(&(inKeyBuffer.flag),OS_OPT_POST_NONE,&os_err);
 		break;
 		case '*':		//add blank cases for keys you don't want to have any effect
 		break;
 		case '#':		//enter has been pressed
 			OSSemPost(&(inKeyBuffer.enter),OS_OPT_POST_NONE,&os_err);
 		break;
-		default:		//it is a number to add to the freq semaphore, or it is '#'
-			if(inKeyBuffer.buffer[KEY_LEN-1] == 0 &&  inKeyBuffer.buffer[KEY_LEN-1] != '#'){
+		default:		//it is a number to add to the freq semaphore
+			if(inKeyBuffer.buffer[KEY_LEN-1] == 0){
 				for (int i = KEY_LEN-1; i > 0; i--){
 					inKeyBuffer.buffer[i] = inKeyBuffer.buffer[i-1];
 				}
@@ -175,7 +157,7 @@ static void inKeyTask(void *p_arg){
 
 static void inLevelTask(void *p_arg){
 	OS_ERR os_err;
-	//INT8U tsense = 0;
+	INT8U tsense = 0;
 	(void)p_arg;
 
 	while(1){
@@ -185,21 +167,13 @@ static void inLevelTask(void *p_arg){
 			if (inLevBuffer.buffer > 0){
 				inLevBuffer.buffer--;
 				OSSemPost(&(inLevBuffer.flag),OS_OPT_POST_NONE,&os_err);
-			}
+			}else{}
 		}else if ((tsense & (1<<BRD_PAD2_CH)) != 0){
 			if (inLevBuffer.buffer < 20){
 				inLevBuffer.buffer++;
 				OSSemPost(&(inLevBuffer.flag),OS_OPT_POST_NONE,&os_err);
-			}
+			}else{}
 		}else{}
 	}
 }
-
-
-
-
-
-
-
-
 

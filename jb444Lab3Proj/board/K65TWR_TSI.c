@@ -13,14 +13,14 @@
 
 typedef enum {PROC1START2, PROC2START1} TSI_TASK_STATE_T;
 typedef struct{
-    INT16U baseline;
-    INT16U offset;
-    INT16U threshold;
+	INT16U baseline;
+	INT16U offset;
+	INT16U threshold;
 }TOUCH_LEVEL_T;
 
 typedef struct{
-    INT8U buffer;
-    OS_SEM flag;
+	INT8U buffer;
+	OS_SEM flag;
 }TSI_BUFFER;
 
 #define MAX_NUM_ELECTRODES 16U
@@ -51,49 +51,49 @@ static CPU_STK tsiTaskStk[APP_CFG_TSI_TASK_STK_SIZE];
 /********************************************************************************
  * K65TWR_TSI0Init: Initializes TSI0 module
  * Notes:
- *    -
+ *
  ********************************************************************************/
 void TSIInit(void){
 
-    OS_ERR os_err;
+	OS_ERR os_err;
 
-    SIM->SCGC5 |= SIM_SCGC5_TSI(1);         //Turn on clock to TSI module
-    SIM->SCGC5 |= SIM_SCGC5_PORTB(1);
+	SIM->SCGC5 |= SIM_SCGC5_TSI(1);         //Turn on clock to TSI module
+	SIM->SCGC5 |= SIM_SCGC5_PORTB(1);
 
-    PORTB->PCR[18]=PORT_PCR_MUX(0);         //Set electrode pins to ALT0
-    PORTB->PCR[19]=PORT_PCR_MUX(0);
-    tsiSensorLevels[BRD_PAD1_CH].offset = E1_TOUCH_OFFSET;
-    tsiSensorLevels[BRD_PAD2_CH].offset = E2_TOUCH_OFFSET;
+	PORTB->PCR[18]=PORT_PCR_MUX(0);         //Set electrode pins to ALT0
+	PORTB->PCR[19]=PORT_PCR_MUX(0);
+	tsiSensorLevels[BRD_PAD1_CH].offset = E1_TOUCH_OFFSET;
+	tsiSensorLevels[BRD_PAD2_CH].offset = E2_TOUCH_OFFSET;
 
-    //16 consecutive scans, Prescale divide by 32, software trigger
-    //16uA ext. charge current, 16uA Ref. charge current, .592V dV
-    TSI0->GENCS = ((TSI_GENCS_EXTCHRG(5))|
-                   (TSI_GENCS_REFCHRG(5))|
-                   (TSI_GENCS_DVOLT(1))|
-                   (TSI_GENCS_PS(5))|
-                   (TSI_GENCS_NSCN(15)));
+	//16 consecutive scans, Prescale divide by 32, software trigger
+	//16uA ext. charge current, 16uA Ref. charge current, .592V dV
+	TSI0->GENCS = ((TSI_GENCS_EXTCHRG(5))|
+				   (TSI_GENCS_REFCHRG(5))|
+				   (TSI_GENCS_DVOLT(1))|
+				   (TSI_GENCS_PS(5))|
+				   (TSI_GENCS_NSCN(15)));
 
-    TSI0_ENABLE();
-    TSIChCalibration(BRD_PAD1_CH);
-    TSIChCalibration(BRD_PAD2_CH);
-    tsiBuffer.buffer = 0x00;           /* Init tsiBuffer      */
-    OSSemCreate(&(tsiBuffer.flag),"Tsi Semaphore",0,&os_err);
-    //Create the key task
-    OSTaskCreate((OS_TCB     *)&tsiTaskTCB,
-                (CPU_CHAR   *)"uCOS tsi Task ",
-                (OS_TASK_PTR ) TSITask,
-                (void       *) 0,
-                (OS_PRIO     ) APP_CFG_TSI_TASK_PRIO,
-                (CPU_STK    *)&tsiTaskStk[0],
-                (CPU_STK     )(APP_CFG_TSI_TASK_STK_SIZE / 10u),
-                (CPU_STK_SIZE) APP_CFG_TSI_TASK_STK_SIZE,
-                (OS_MSG_QTY  ) 0,
-                (OS_TICK     ) 0,
-                (void       *) 0,
-                (OS_OPT      )(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
-                (OS_ERR     *)&os_err);
-    while(os_err != OS_ERR_NONE){           /* Error Trap                        */
-    }
+	TSI0_ENABLE();
+	TSIChCalibration(BRD_PAD1_CH);
+	TSIChCalibration(BRD_PAD2_CH);
+	tsiBuffer.buffer = 0x00;           /* Init tsiBuffer      */
+	OSSemCreate(&(tsiBuffer.flag),"Tsi Semaphore",0,&os_err);
+	//Create the key task
+	OSTaskCreate((OS_TCB     *)&tsiTaskTCB,
+				(CPU_CHAR   *)"uCOS tsi Task ",
+				(OS_TASK_PTR ) TSITask,
+				(void       *) 0,
+				(OS_PRIO     ) APP_CFG_TSI_TASK_PRIO,
+				(CPU_STK    *)&tsiTaskStk[0],
+				(CPU_STK     )(APP_CFG_TSI_TASK_STK_SIZE / 10u),
+				(CPU_STK_SIZE) APP_CFG_TSI_TASK_STK_SIZE,
+				(OS_MSG_QTY  ) 0,
+				(OS_TICK     ) 0,
+				(void       *) 0,
+				(OS_OPT      )(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
+				(OS_ERR     *)&os_err);
+	while(os_err != OS_ERR_NONE){           /* Error Trap                        */
+	}
 }
 
 /********************************************************************************
@@ -102,12 +102,12 @@ void TSIInit(void){
  *                   Note - the sensor must not be pressed when this is executed.
  ********************************************************************************/
 static void TSIChCalibration(INT8U channel){
-        tsiStartScan(channel);
-        while((TSI0->GENCS & TSI_GENCS_EOSF_MASK) == 0){} //wait for scan to finish
-        TSI0->GENCS |= TSI_GENCS_EOSF(1);    //Clear flag
-        tsiSensorLevels[channel].baseline = (INT16U)(TSI0->DATA & TSI_DATA_TSICNT_MASK);
-        tsiSensorLevels[channel].threshold = tsiSensorLevels[channel].baseline +
-                                             tsiSensorLevels[channel].offset;
+		tsiStartScan(channel);
+		while((TSI0->GENCS & TSI_GENCS_EOSF_MASK) == 0){} //wait for scan to finish
+		TSI0->GENCS |= TSI_GENCS_EOSF(1);    //Clear flag
+		tsiSensorLevels[channel].baseline = (INT16U)(TSI0->DATA & TSI_DATA_TSICNT_MASK);
+		tsiSensorLevels[channel].threshold = tsiSensorLevels[channel].baseline +
+											 tsiSensorLevels[channel].offset;
 }
 
 /********************************************************************************
@@ -156,8 +156,8 @@ void TSITask(void *p_arg){
  *                    channel - the TSI channel to be started. Range 0-15
  ********************************************************************************/
 static void tsiStartScan(INT8U channel){
-    TSI0->DATA = TSI_DATA_TSICH(channel);       //set channel
-    TSI0->DATA |= TSI_DATA_SWTS(1);             //start a scan sequence
+	TSI0->DATA = TSI_DATA_TSICH(channel);       //set channel
+	TSI0->DATA |= TSI_DATA_SWTS(1);             //start a scan sequence
 }
 
 /********************************************************************************
@@ -170,15 +170,15 @@ static void tsiProcScan(INT8U channel){
 
 	OS_ERR os_err;
 
-    while((TSI0->GENCS & TSI_GENCS_EOSF_MASK) == 0){}
-    TSI0->GENCS |= TSI_GENCS_EOSF(1);    //Clear flag
+	while((TSI0->GENCS & TSI_GENCS_EOSF_MASK) == 0){}
+	TSI0->GENCS |= TSI_GENCS_EOSF(1);    //Clear flag
 
-    /* Process electrode 1 */
-    if((INT16U)(TSI0->DATA & TSI_DATA_TSICNT_MASK) > tsiSensorLevels[channel].threshold){
-    	tsiSensorFlags |= (INT16U)(1<<channel);
-    }else{
-    	tsiSensorFlags &= (INT16U)(1<<channel);
-    }
+	/* Process electrode 1 */
+	if((INT16U)(TSI0->DATA & TSI_DATA_TSICNT_MASK) > tsiSensorLevels[channel].threshold){
+		tsiSensorFlags |= (INT16U)(1<<channel);
+	}else{
+		tsiSensorFlags &= (INT16U)(1<<channel);
+	}
 	if(tsiBuffer.buffer != tsiSensorFlags){
 		tsiBuffer.buffer = tsiSensorFlags;
 		(void)OSSemPost(&(tsiBuffer.flag), OS_OPT_POST_1, &os_err);   /* Signal new data in buffer */
@@ -190,6 +190,6 @@ static void tsiProcScan(INT8U channel){
  *   TSIPend: Pends on sensor flag, and returns value of semaphore buffer
  ********************************************************************************/
 INT16U TSIPend(INT16U tout, OS_ERR *os_err){
-    OSSemPend(&(tsiBuffer.flag),tout, OS_OPT_PEND_BLOCKING, (CPU_TS *)0, os_err);
-    return(tsiBuffer.buffer);
+	OSSemPend(&(tsiBuffer.flag),tout, OS_OPT_PEND_BLOCKING, (CPU_TS *)0, os_err);
+	return(tsiBuffer.buffer);
 }
