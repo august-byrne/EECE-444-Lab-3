@@ -30,6 +30,7 @@ static void uiDispTask(void *p_arg);
 static void uiVolTask(void *p_arg);
 static void uiStateTask(void *p_arg);
 
+<<<<<<< Upstream, based on origin/master
 static STATE uiStateCntrl = WAITING_MODE;
 
 static INT8U lev = 0;
@@ -37,6 +38,13 @@ static INT8U lev = 0;
 OS_MUTEX FrequencyKey;
 
 static const INT8U DutyCycle[21] = {0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100};
+=======
+typedef enum {SINEWAVE, PULSETRAIN} UISTATE_T;
+static UISTATE_T uiStateCntrl;
+
+static const INT8U DutyCycle[20] = {0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50,
+55, 60, 65, 70, 75, 80, 85, 90, 95, 100};
+>>>>>>> f345c38 Woot Woot Rough Draft
 
 /*******************************************************************************
 * UIInit Code
@@ -52,7 +60,11 @@ void UIInit(void){
 
     OSTaskCreate(&uiFreqTaskTCB,
                  "UIF Task",
+<<<<<<< Upstream, based on origin/master
                  uiFreqTask,
+=======
+                 swcCounterTask,
+>>>>>>> f345c38 Woot Woot Rough Draft
                  (void *)0,
                  APP_CFG_UIF_TASK_PRIO,
                  &uiFreqTaskStk[0],
@@ -66,7 +78,11 @@ void UIInit(void){
 
     OSTaskCreate(&uiDispTaskTCB,
                  "UID Task",
+<<<<<<< Upstream, based on origin/master
                  uiDispTask,
+=======
+                 swcCounterTask,
+>>>>>>> f345c38 Woot Woot Rough Draft
                  (void *)0,
                  APP_CFG_UID_TASK_PRIO,
                  &uiDispTaskStk[0],
@@ -80,6 +96,7 @@ void UIInit(void){
 
     OSTaskCreate(&uiVolTaskTCB,
                  "UIV Task",
+<<<<<<< Upstream, based on origin/master
                  uiVolTask,
                  (void *)0,
                  APP_CFG_UIV_TASK_PRIO,
@@ -107,6 +124,20 @@ void UIInit(void){
                  &os_err);
 
     OSMutexCreate(&FrequencyKey, "Frequency", &os_err);
+=======
+                 swcCounterTask,
+                 (void *)0,
+                 APP_CFG_UIV_TASK_PRIO,
+                 &uiVolTaskStk[0],
+                 APP_CFG_UIV_TASK_STK_SIZE/10,
+                 APP_CFG_UIV_TASK_STK_SIZE,
+                 0,
+                 0,
+                 (void*)0,
+                 OS_OPT_TASK_NONE,
+                 &os_err);
+
+>>>>>>> f345c38 Woot Woot Rough Draft
 
 }
 
@@ -126,7 +157,18 @@ void uiFreqTask(void *p_arg){
     (void)p_arg;
 
     while(1){
+<<<<<<< Upstream, based on origin/master
         DB3_TURN_OFF();
+=======
+        DB2_TURN_OFF();
+        OSSemPend(&(inKeyBuffer.flag), 0, OS_OPT_PEND_BLOCKING, (void *)0, os_err);
+        freq = inKeyBuffer.buffer;
+        LcdDispByte(LCD_ROW_2,
+                    LCD_COL_1,
+                    APP_LAYER_FREQ,
+                    freq);
+        DB2_TURN_ON();
+>>>>>>> f345c38 Woot Woot Rough Draft
 
         OSSemPend(&(inKeyBuffer.flag), 0, OS_OPT_PEND_BLOCKING, (void *)0, &os_err);
         LcdDispClear(APP_LAYER_TYPE);
@@ -146,7 +188,10 @@ void uiFreqTask(void *p_arg){
  * uiDispTask Code
  *
  * Writes Current Frequency to the left side top row of in Hz
+<<<<<<< Upstream, based on origin/master
  * Pends on KeyTask's #
+=======
+>>>>>>> f345c38 Woot Woot Rough Draft
  * Rachel Givens, 03/05/2021
  *****************************************************************************/
 
@@ -155,9 +200,25 @@ void uiDispTask(void *p_arg){
     INT16U frequency;
 
     (void)p_arg;
+    INT8U freq;
 
     while(1){
+<<<<<<< Upstream, based on origin/master
         DB4_TURN_OFF();
+=======
+        DB2_TURN_OFF();
+        OSSemPend(&(inKeyBuffer.flag), 0, OS_OPT_PEND_BLOCKING, (void *)0, os_err);
+        freq = inKeyBuffer.buffer;
+        LcdDispByte(LCD_ROW_1,
+                    LCD_COL_1,
+                    APP_LAYER_FREQ,
+                    freq);
+        LcdDispStrg(LCD_ROW_1,
+                    LCD_COL_7,
+                    APP_LAYER_FREQ,
+                    "Hz");
+        DB2_TURN_ON();
+>>>>>>> f345c38 Woot Woot Rough Draft
 
         OSSemPend(&(inKeyBuffer.enter), 0, OS_OPT_PEND_BLOCKING, (void *)0, &os_err);
 		for (int i = 0; i < KEY_LEN; i++){
@@ -183,15 +244,21 @@ void uiDispTask(void *p_arg){
  * uiVolTask Code
  *
  * Writes Volume to the LCD, top row right side
+<<<<<<< Upstream, based on origin/master
  * Pends on inLev Task
+=======
+ *
+>>>>>>> f345c38 Woot Woot Rough Draft
  * Rachel Givens, 03/05/2021
  *****************************************************************************/
 void uiVolTask(void *p_arg){
     OS_ERR os_err;
+    INT8U lev;
 
     (void)p_arg;
 
     while(1){
+<<<<<<< Upstream, based on origin/master
         DB5_TURN_OFF();
 
         OSSemPend(&(inLevBuffer.flag), 0, OS_OPT_PEND_BLOCKING, (void *)0, &os_err);
@@ -218,6 +285,32 @@ void uiVolTask(void *p_arg){
         }
 
         DB5_TURN_ON();
+=======
+        DB2_TURN_OFF();
+        OSSemPend(&(inLevBuffer.flag), 0, OS_OPT_PEND_BLOCKING, (void *)0, os_err);
+
+        case(uiStateCntrl):
+            SINEWAVE:
+                LcdDispByte(LCD_ROW_1,
+                            LCD_COL_8,
+                            APP_LAYER_VOL,
+                            lev);
+            break;
+
+            PULSETRAIN:
+                LcdDispByte(LCD_ROW_1,
+                            LCD_COL_14,
+                            APP_LAYER_VOL,
+                            DutyCycle[lev]);
+                LcdDispStrg(LCD_ROW_1,
+                            LCD_COL_16,
+                            APP_LAYER_VOL,
+                            "%");
+            break;
+            default:
+            break;
+        DB2_TURN_ON();
+>>>>>>> f345c38 Woot Woot Rough Draft
 
 
     }
@@ -226,6 +319,32 @@ void uiVolTask(void *p_arg){
 
 /*******************************************************************************
 * StatePend Code
+<<<<<<< Upstream, based on origin/master
+=======
+*
+*
+* Rachel Givens 03/05/2021
+*******************************************************************************/
+void StatePend(INT16U state, OS_ERR *os_err){
+
+
+    OSSemPend(&(CtrlState.flag),state, OS_OPT_PEND_BLOCKING, (void *)0, os_err);
+
+    if(CtrlState.buffer == PULSETRAIN_MODE){
+        uiStateCntrl = PULSETRAIN;
+    }else if(CtrlState.buffer == SINEWAVE_MODE){
+        uiStateCntrl = SINEWAVE;
+    }else{
+        // do nothing
+    }
+
+
+
+}
+
+/*******************************************************************************
+* SWCountPend Code
+>>>>>>> f345c38 Woot Woot Rough Draft
 *
 *
 * Rachel Givens 03/05/2021
