@@ -2,7 +2,7 @@
  * input.c
  *  This all of the input of the software
  *  Created on: Mar 3, 2021
- *  Lasted Edited On: Mar 4 2021
+ *  Lasted Edited On: Mar 5 2021
  *      Author: August Byrne
  */
 #include "app_cfg.h"
@@ -45,6 +45,7 @@ static void inLevelTask(void *p_arg);
 typedef struct {
 	INT8U buffer[KEY_LEN];
 	OS_SEM flag;
+	OS_SEM enter;
 } KEY_BUFFER;
 static KEY_BUFFER inKeyBuffer;
 
@@ -60,6 +61,8 @@ typedef struct{
 }CTRL_STATE;
 static CTRL_STATE CtrlState;
 
+static INT8U kchar = 0;
+static INT8U tsense = 0;
 /*****************************************************************************************
 * input()
 *****************************************************************************************/
@@ -71,13 +74,15 @@ void inputInit(void){
 	OSSemCreate(&(CtrlState.flag),"Key Press Buffer",0,&os_err);
 	CtrlState.buffer = WAITING_MODE;
 	OSSemCreate(&(inKeyBuffer.flag),"Key Press Buffer",0,&os_err);
+	OSSemCreate(&(inKeyBuffer.enter),"Key Press Enter",0,&os_err);
 	for (int i = 0; i < KEY_LEN; ++i){
 		inKeyBuffer.buffer[i] = 0;
 	}
 	OSSemCreate(&(inLevBuffer.flag),"Touch Sensor Buffer",0,&os_err);
 	inLevBuffer.buffer = 0;
-
-	OSTaskCreate(&InKeyTaskTCB,                  /* Create Task 1                    */
+	while(os_err != OS_ERR_NONE){           /* Error Trap                           */
+    }
+	OSTaskCreate(&InKeyTaskTCB,                  /* Create Key Task                    */
 				"InKeyTask ",
 				inKeyTask,
 				(void *) 0,
@@ -91,7 +96,7 @@ void inputInit(void){
 				(OS_OPT_TASK_NONE),
 				&os_err);
 
-	OSTaskCreate(&InLevelTaskTCB,                  /* Create Task 1                    */
+	OSTaskCreate(&InLevelTaskTCB,                  /* Create Level Task                    */
 				"InLevelTask ",
 				inLevelTask,
 				(void *) 0,
@@ -109,8 +114,8 @@ void inputInit(void){
 
 static void inKeyTask(void *p_arg){
 	OS_ERR os_err;
-	INT8U kchar = 0;
-	//INT8U tempBuffer[KEY_LEN] = {0,0,0,0,0};
+
+	//INT8U kchar = 0;
 	(void)p_arg;
 
 	while(1){
@@ -118,7 +123,7 @@ static void inKeyTask(void *p_arg){
 		kchar = KeyPend(0, &os_err);
 		switch (kchar){
 		case 'a':		//CtrlState semaphore to sine wave mode
-			for (int i = 0; i < KEY_LEN; ++i){
+			for (int i = 0; i < KEY_LEN; i++){
 				inKeyBuffer.buffer[i] = 0;
 			}
 			OSSemPost(&(inKeyBuffer.flag),OS_OPT_POST_NONE,&os_err);
@@ -126,7 +131,7 @@ static void inKeyTask(void *p_arg){
 			OSSemPost(&(CtrlState.flag),OS_OPT_POST_NONE,&os_err);
 		break;
 		case 'b':		//CtrlState semaphore to square wave mode
-			for (int i = 0; i < KEY_LEN; ++i){
+			for (int i = 0; i < KEY_LEN; i++){
 				inKeyBuffer.buffer[i] = 0;
 			}
 			OSSemPost(&(inKeyBuffer.flag),OS_OPT_POST_NONE,&os_err);
@@ -134,7 +139,7 @@ static void inKeyTask(void *p_arg){
 			OSSemPost(&(CtrlState.flag),OS_OPT_POST_NONE,&os_err);
 		break;
 		case 'c':		//CtrlState semaphore to square wave mode
-			for (int i = 0; i < KEY_LEN; ++i){
+			for (int i = 0; i < KEY_LEN; i++){
 				inKeyBuffer.buffer[i] = 0;
 			}
 			OSSemPost(&(inKeyBuffer.flag),OS_OPT_POST_NONE,&os_err);
@@ -147,12 +152,13 @@ static void inKeyTask(void *p_arg){
 					inKeyBuffer.buffer[i] = inKeyBuffer.buffer[i+1];
 				}
 				inKeyBuffer.buffer[KEY_LEN-1] = 0;
-				//inKeyBuffer.buffer = tempBuffer;
 				OSSemPost(&(inKeyBuffer.flag),OS_OPT_POST_NONE,&os_err);
-				//tempBuffer[] = {0,0,0,0,0};
 			}else{}
 		break;
 		case '*':		//add blank cases for keys you don't want to have any effect
+		break;
+		case '#':		//enter has been pressed
+			OSSemPost(&(inKeyBuffer.enter),OS_OPT_POST_NONE,&os_err);
 		break;
 		default:		//it is a number to add to the freq semaphore, or it is '#'
 			if(inKeyBuffer.buffer[KEY_LEN-1] == 0 &&  inKeyBuffer.buffer[KEY_LEN-1] != '#'){
@@ -160,9 +166,7 @@ static void inKeyTask(void *p_arg){
 					inKeyBuffer.buffer[i] = inKeyBuffer.buffer[i-1];
 				}
 				inKeyBuffer.buffer[0] = kchar;
-				//inKeyBuffer.buffer = tempBuffer;
 				OSSemPost(&(inKeyBuffer.flag),OS_OPT_POST_NONE,&os_err);
-				//tempBuffer = 0;
 			}else{}
 		}
 		DB3_TURN_ON();
@@ -171,7 +175,7 @@ static void inKeyTask(void *p_arg){
 
 static void inLevelTask(void *p_arg){
 	OS_ERR os_err;
-	INT8U tsense = 0;
+	//INT8U tsense = 0;
 	(void)p_arg;
 
 	while(1){
@@ -179,12 +183,12 @@ static void inLevelTask(void *p_arg){
 		tsense = TSIPend(0, &os_err);
 		if ((tsense & (1<<BRD_PAD1_CH)) != 0){
 			if (inLevBuffer.buffer > 0){
-				inLevBuffer.buffer -=1;
+				inLevBuffer.buffer--;
 				OSSemPost(&(inLevBuffer.flag),OS_OPT_POST_NONE,&os_err);
 			}
 		}else if ((tsense & (1<<BRD_PAD2_CH)) != 0){
 			if (inLevBuffer.buffer < 20){
-				inLevBuffer.buffer +=1;
+				inLevBuffer.buffer++;
 				OSSemPost(&(inLevBuffer.flag),OS_OPT_POST_NONE,&os_err);
 			}
 		}else{}

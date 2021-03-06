@@ -55,7 +55,7 @@ static CPU_STK tsiTaskStk[APP_CFG_TSI_TASK_STK_SIZE];
  ********************************************************************************/
 void TSIInit(void){
 
-	OS_ERR os_err;
+    OS_ERR os_err;
 
     SIM->SCGC5 |= SIM_SCGC5_TSI(1);         //Turn on clock to TSI module
     SIM->SCGC5 |= SIM_SCGC5_PORTB(1);
@@ -121,12 +121,12 @@ void TSITask(void *p_arg){
 
 	OS_ERR os_err;
 
-    static TSI_TASK_STATE_T tsiTaskState = PROC1START2;
-    (void)p_arg;
-    while(1){
-		//DB1_TURN_OFF();                             /* Turn off debug bit while waiting */
-		OSTimeDly(8,OS_OPT_TIME_PERIODIC,&os_err);     /* Task period = 10ms   */
-		//DB1_TURN_ON();                          /* Turn on debug bit while ready/running*/
+	static TSI_TASK_STATE_T tsiTaskState = PROC1START2;
+	(void)p_arg;
+	while(1){
+		DB2_TURN_OFF();                             /* Turn off debug bit while waiting */
+		OSTimeDly(8,OS_OPT_TIME_PERIODIC,&os_err);     /* Task period = 8ms   */
+		DB2_TURN_ON();                          /* Turn on debug bit while ready/running*/
 		tsiStartScan(BRD_PAD1_CH);
 
 		DB2_TURN_ON();
@@ -147,8 +147,7 @@ void TSITask(void *p_arg){
 			tsiTaskState = PROC1START2;
 			break;
 		}
-		DB2_TURN_OFF();
-    }
+	}
 
 }
 

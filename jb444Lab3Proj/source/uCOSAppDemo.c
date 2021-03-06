@@ -19,7 +19,11 @@
 #include "K65TWR_ClkCfg.h"
 #include "K65TWR_GPIO.h"
 #include "MemTest.h"
+#include "LcdLayered.h"
 #include "input.h"
+
+#define LOWADDR (INT32U) 0x00000000		//low memory address
+#define HIGHADRR (INT32U) 0x001FFFFF		//high memory address
 /*****************************************************************************************
 * Allocate task control blocks
 *****************************************************************************************/
@@ -34,17 +38,15 @@ static CPU_STK AppTaskStartStk[APP_CFG_TASK_START_STK_SIZE];
 *   - Private if in the same module as startup task. Otherwise public.
 *****************************************************************************************/
 static void  AppStartTask(void *p_arg);
-
+static INT8U ERROR = 0;
 /*****************************************************************************************
 * main()
 *****************************************************************************************/
 void main(void) {
-
     OS_ERR  os_err;
 
     K65TWR_BootClock();
     CPU_IntDis();               /* Disable all interrupts, OS will enable them  */
-
     OSInit(&os_err);                    /* Initialize uC/OS-III                         */
 
     OSTaskCreate(&AppTaskStartTCB,                  /* Address of TCB assigned to task */
@@ -72,22 +74,32 @@ void main(void) {
 * Todd Morton, 01/06/2016
 *****************************************************************************************/
 static void AppStartTask(void *p_arg) {
+	OS_ERR os_err;
+	INT16U math_val = 0;
 
-    OS_ERR os_err;
+	(void)p_arg;                        /* Avoid compiler warning for unused variable   */
 
-    (void)p_arg;                        /* Avoid compiler warning for unused variable   */
-
-    OS_CPU_SysTickInitFreq(SYSTEM_CLOCK);
-    /* Initialize StatTask. This must be called when there is only one task running.
-     * Therefore, any function call that creates a new task must come after this line.
-     * Or, alternatively, you can comment out this line, or remove it. If you do, you
-     * will not have accurate CPU load information                                       */
+	OS_CPU_SysTickInitFreq(SYSTEM_CLOCK);
+	while(os_err != OS_ERR_NONE){           /* Error Trap                           */
+		ERROR = os_err;
+		while(1){
+		}
+	}
+	/* Initialize StatTask. This must be called when there is only one task running.
+	 * Therefore, any function call that creates a new task must come after this line.
+	 * Or, alternatively, you can comment out this line, or remove it. If you do, you
+	 * will not have accurate CPU load information                                       */
 //    OSStatTaskCPUUsageInit(&os_err);
-    GpioLED8Init();
-    GpioLED9Init();
-    GpioDBugBitsInit();
-    inputInit();
 
-    OSTaskDel((OS_TCB *)0, &os_err);
+	//Initial program checksum, which is displayed on the second row of the LCD
+	math_val = CalcChkSum((INT8U *)LOWADDR,(INT8U *)HIGHADRR);
+	LcdDispString(LCD_ROW_2,LCD_COL_1,LCD_LAYER_CHKSM,"CS: ");
+	LcdDispByte(LCD_ROW_2,LCD_COL_4,LCD_LAYER_CHKSM,(INT8U)math_val);
+	LcdDispByte(LCD_ROW_2,LCD_COL_6,LCD_LAYER_CHKSM,(INT8U)(math_val << 8));	//display first byte then <<8 and display next byte
+
+	GpioDBugBitsInit();
+	inputInit();
+
+	OSTaskDel((OS_TCB *)0, &os_err);
 
 }

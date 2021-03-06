@@ -58,7 +58,6 @@ static OS_TCB keyTaskTCB;
 * Allocate task stack space.
 *************************************************************************/
 static CPU_STK keyTaskStk[APP_CFG_KEY_TASK_STK_SIZE];
-
 /********************************************************************
 * KeyPend() - A function to provide access to the key buffer via a
 *             semaphore.

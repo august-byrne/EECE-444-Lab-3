@@ -1,7 +1,7 @@
 /*
  * input.h
  *
- *  Created on: Mar 4, 2021
+ *  Created on: Mar 5, 2021
  *      Author: August
  */
 
@@ -12,8 +12,9 @@
 typedef enum {SINEWAVE_MODE, PULSETRAIN_MODE, WAITING_MODE} STATE;
 
 typedef struct {
-	INT8C buffer[KEY_LEN];
+	INT8U buffer[KEY_LEN];
 	OS_SEM flag;
+	OS_SEM enter;
 } KEY_BUFFER;
 
 typedef struct{
