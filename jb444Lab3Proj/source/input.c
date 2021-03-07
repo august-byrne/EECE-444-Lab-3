@@ -2,7 +2,7 @@
  * input.c
  *  This is all of the input for the function generator of EECE444 Lab 3
  *  Created on: Mar 3, 2021
- *  Lasted Edited On: Mar 6 2021
+ *  Lasted Edited On: Mar 7 2021
  *      Author: August Byrne
  */
 #include "app_cfg.h"
@@ -98,7 +98,6 @@ void inputInit(void){
 
 static void inKeyTask(void *p_arg){
 	OS_ERR os_err;
-
 	INT8U kchar = 0;
 	(void)p_arg;
 
@@ -157,18 +156,18 @@ static void inKeyTask(void *p_arg){
 
 static void inLevelTask(void *p_arg){
 	OS_ERR os_err;
-	INT8U tsense = 0;
+	INT16U tsense;
 	(void)p_arg;
 
 	while(1){
 		//handles all TSI scanning
 		tsense = TSIPend(0, &os_err);
-		if ((tsense & (1<<BRD_PAD1_CH)) != 0){
+		if ((tsense & (1<<BRD_PAD2_CH)) != 0){
 			if (inLevBuffer.buffer > 0){
 				inLevBuffer.buffer--;
 				OSSemPost(&(inLevBuffer.flag),OS_OPT_POST_NONE,&os_err);
 			}else{}
-		}else if ((tsense & (1<<BRD_PAD2_CH)) != 0){
+		}else if ((tsense & (1<<BRD_PAD1_CH)) != 0){
 			if (inLevBuffer.buffer < 20){
 				inLevBuffer.buffer++;
 				OSSemPost(&(inLevBuffer.flag),OS_OPT_POST_NONE,&os_err);

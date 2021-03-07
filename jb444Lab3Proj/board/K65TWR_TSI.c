@@ -19,7 +19,7 @@ typedef struct{
 }TOUCH_LEVEL_T;
 
 typedef struct{
-	INT8U buffer;
+	INT16U buffer[2];
 	OS_SEM flag;
 }TSI_BUFFER;
 
@@ -30,6 +30,9 @@ typedef struct{
 #define TSI0_ENABLE()    TSI0->GENCS |= TSI_GENCS_TSIEN_MASK
 #define TSI0_DISABLE()   TSI0->GENCS &= ~TSI_GENCS_TSIEN_MASK
 
+#define PAD_ONE 0
+#define PAD_TWO 1
+
 INT16U TSIPend(INT16U tout, OS_ERR *os_err);
 static void TSITask(void *p_arg);
 static TOUCH_LEVEL_T tsiSensorLevels[MAX_NUM_ELECTRODES];
@@ -38,6 +41,7 @@ static void tsiProcScan(INT8U channel);
 static void TSIChCalibration(INT8U channel);
 static TSI_BUFFER tsiBuffer;
 static INT16U tsiSensorFlags = 0;
+static INT8U padVal = 0;
 
 /**********************************************************************************
 * Allocate task control blocks
@@ -76,7 +80,8 @@ void TSIInit(void){
 	TSI0_ENABLE();
 	TSIChCalibration(BRD_PAD1_CH);
 	TSIChCalibration(BRD_PAD2_CH);
-	tsiBuffer.buffer = 0x00;           /* Init tsiBuffer      */
+	tsiBuffer.buffer[PAD_ONE] = 0x0000;           /* Init tsiBuffer      */
+	tsiBuffer.buffer[PAD_TWO] = 0x0000;           /* Init tsiBuffer      */
 	OSSemCreate(&(tsiBuffer.flag),"Tsi Semaphore",0,&os_err);
 	//Create the key task
 	OSTaskCreate((OS_TCB     *)&tsiTaskTCB,
@@ -128,17 +133,25 @@ void TSITask(void *p_arg){
 		OSTimeDly(8,OS_OPT_TIME_PERIODIC,&os_err);     /* Task period = 8ms   */
 		DB2_TURN_ON();                          /* Turn on debug bit while ready/running*/
 		tsiStartScan(BRD_PAD1_CH);
-
-		DB2_TURN_ON();
 		switch(tsiTaskState){
 		case PROC1START2:
 			tsiProcScan(BRD_PAD1_CH);
+			if(tsiBuffer.buffer[PAD_ONE] != tsiSensorFlags){
+				tsiBuffer.buffer[PAD_ONE] = tsiSensorFlags;
+				padVal = PAD_ONE;
+				(void)OSSemPost(&(tsiBuffer.flag), OS_OPT_POST_1, &os_err);   /* Signal new data in buffer */
+			}
 			DB1_TURN_ON();
 			tsiStartScan(BRD_PAD2_CH);
 			tsiTaskState = PROC2START1;
 			break;
 		case PROC2START1:
 			tsiProcScan(BRD_PAD2_CH);
+			if(tsiBuffer.buffer[PAD_TWO] != tsiSensorFlags){
+				tsiBuffer.buffer[PAD_TWO] = tsiSensorFlags;
+				padVal = PAD_TWO;
+				(void)OSSemPost(&(tsiBuffer.flag), OS_OPT_POST_1, &os_err);   /* Signal new data in buffer */
+			}
 			DB1_TURN_OFF();
 			tsiStartScan(BRD_PAD1_CH);
 			tsiTaskState = PROC1START2;
@@ -146,6 +159,9 @@ void TSITask(void *p_arg){
 		default:
 			tsiTaskState = PROC1START2;
 			break;
+		}
+		if(tsiBuffer.buffer[2]){
+
 		}
 	}
 
@@ -168,8 +184,6 @@ static void tsiStartScan(INT8U channel){
  ********************************************************************************/
 static void tsiProcScan(INT8U channel){
 
-	OS_ERR os_err;
-
 	while((TSI0->GENCS & TSI_GENCS_EOSF_MASK) == 0){}
 	TSI0->GENCS |= TSI_GENCS_EOSF(1);    //Clear flag
 
@@ -179,10 +193,6 @@ static void tsiProcScan(INT8U channel){
 	}else{
 		tsiSensorFlags &= (INT16U)(1<<channel);
 	}
-	if(tsiBuffer.buffer != tsiSensorFlags){
-		tsiBuffer.buffer = tsiSensorFlags;
-		(void)OSSemPost(&(tsiBuffer.flag), OS_OPT_POST_1, &os_err);   /* Signal new data in buffer */
-	}else{}
 
 }
 
@@ -191,5 +201,5 @@ static void tsiProcScan(INT8U channel){
  ********************************************************************************/
 INT16U TSIPend(INT16U tout, OS_ERR *os_err){
 	OSSemPend(&(tsiBuffer.flag),tout, OS_OPT_PEND_BLOCKING, (CPU_TS *)0, os_err);
-	return(tsiBuffer.buffer);
+	return(tsiBuffer.buffer[padVal]);
 }
