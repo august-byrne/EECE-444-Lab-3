@@ -7,7 +7,6 @@
 
 #ifndef OUTPUTMODULE_H_
 #define OUTPUTMODULE_H_
-
-void OutputInit(void *p_arg);
+void OutputInit(void);
 
 #endif /* OUTPUTMODULE_H_ */
