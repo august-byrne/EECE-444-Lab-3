@@ -30,12 +30,13 @@
 *              Range from 0 to (LCD_NUM_LAYERS - 1)                      *
 *              Arranged from largest number on top, down to 0 on bottom. *
 *************************************************************************/
-#define LCD_NUM_LAYERS 4
+#define LCD_NUM_LAYERS 5
 
-#define LCD_LAYER_4 3
-#define LCD_LAYER_TIMER 2
-#define LCD_LAYER_LAP 1
-#define LCD_LAYER_CHKSM 0
+#define APP_LAYER_UNIT 4
+#define APP_LAYER_CHKSUM 3
+#define APP_LAYER_TYPE 2
+#define APP_LAYER_VOL 1
+#define APP_LAYER_FREQ 0
 
 /*************************************************************************
 * LCD Rows and Columns Defines

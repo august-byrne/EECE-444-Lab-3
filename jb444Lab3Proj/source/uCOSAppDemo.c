@@ -21,6 +21,7 @@
 #include "MemTest.h"
 #include "LcdLayered.h"
 #include "input.h"
+#include "UserInt.h"
 
 #define LOWADDR (INT32U) 0x00000000			//low memory address
 #define HIGHADRR (INT32U) 0x001FFFFF		//high memory address
@@ -90,12 +91,13 @@ static void AppStartTask(void *p_arg) {
 	GpioDBugBitsInit();
 	LcdInit();
 	inputInit();
+	UIInit();
 
 	//Initial program checksum, which is displayed on the second row of the LCD
 	INT8U math_val = CalcChkSum((INT8U *)LOWADDR,(INT8U *)HIGHADRR);
-	LcdDispString(LCD_ROW_2,LCD_COL_1,LCD_LAYER_CHKSM,"CS: ");
-	LcdDispByte(LCD_ROW_2,LCD_COL_4,LCD_LAYER_CHKSM,(INT8U)math_val);
-	LcdDispByte(LCD_ROW_2,LCD_COL_6,LCD_LAYER_CHKSM,(INT8U)(math_val << 8));	//display first byte then <<8 and display next byte
+	LcdDispString(LCD_ROW_2,LCD_COL_1,APP_LAYER_CHKSUM,"CS: ");
+	LcdDispByte(LCD_ROW_2,LCD_COL_4,APP_LAYER_CHKSUM,(INT8U)math_val);
+	LcdDispByte(LCD_ROW_2,LCD_COL_6,APP_LAYER_CHKSUM,(INT8U)(math_val << 8));	//display first byte then <<8 and display next byte
 
 
 

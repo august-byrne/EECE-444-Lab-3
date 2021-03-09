@@ -17,7 +17,7 @@
 /*****************************************************************************************
 * Variable Defines Here
 *****************************************************************************************/
-
+#define ASCII_0 48
 /*****************************************************************************************
 * Allocate task control blocks
 *****************************************************************************************/
@@ -145,17 +145,19 @@ static void inKeyTask(void *p_arg){
 		default:		//it is a number to add to the freq semaphore
 			if(inKeyBuffer.buffer[KEY_LEN-1] == 0){
 				values = inKeyBuffer.buffer[4]*10000+inKeyBuffer.buffer[3]*1000+inKeyBuffer.buffer[2]*100+inKeyBuffer.buffer[1]*10+inKeyBuffer.buffer[0];
-				if (values <= 10000){
+				if (values == 0 && kchar == ASCII_0){
+					//do nothing for leading zeros case
+				}else if (values <= 10000){
 					for (int i = KEY_LEN-1; i > 0; i--){
 						inKeyBuffer.buffer[i] = inKeyBuffer.buffer[i-1];
 					}
 					inKeyBuffer.buffer[0] = kchar;
 				}else{
-					inKeyBuffer.buffer[4] = 1;
-					inKeyBuffer.buffer[3] = 0;
-					inKeyBuffer.buffer[2] = 0;
-					inKeyBuffer.buffer[1] = 0;
-					inKeyBuffer.buffer[0] = 0;
+					inKeyBuffer.buffer[4] = ASCII_0+1;
+					inKeyBuffer.buffer[3] = ASCII_0;
+					inKeyBuffer.buffer[2] = ASCII_0;
+					inKeyBuffer.buffer[1] = ASCII_0;
+					inKeyBuffer.buffer[0] = ASCII_0;
 				}
 				OSSemPost(&(inKeyBuffer.flag),OS_OPT_POST_NONE,&os_err);
 			}else{}
