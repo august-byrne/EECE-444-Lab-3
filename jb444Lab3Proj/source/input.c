@@ -99,6 +99,7 @@ void inputInit(void){
 static void inKeyTask(void *p_arg){
 	OS_ERR os_err;
 	INT8U kchar = 0;
+	INT16U values = 0;
 	(void)p_arg;
 
 	while(1){
@@ -143,7 +144,8 @@ static void inKeyTask(void *p_arg){
 		break;
 		default:		//it is a number to add to the freq semaphore
 			if(inKeyBuffer.buffer[KEY_LEN-1] == 0){
-				if (10000<=(inKeyBuffer.buffer[4]*10000+inKeyBuffer.buffer[3]*1000+inKeyBuffer.buffer[2]*100+inKeyBuffer.buffer[1]*10+inKeyBuffer.buffer[0])){
+				values = inKeyBuffer.buffer[4]*10000+inKeyBuffer.buffer[3]*1000+inKeyBuffer.buffer[2]*100+inKeyBuffer.buffer[1]*10+inKeyBuffer.buffer[0];
+				if (values <= 10000){
 					for (int i = KEY_LEN-1; i > 0; i--){
 						inKeyBuffer.buffer[i] = inKeyBuffer.buffer[i-1];
 					}
