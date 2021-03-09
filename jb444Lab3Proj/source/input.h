@@ -27,6 +27,10 @@ typedef struct{
     OS_SEM flag;
 }CTRL_STATE;
 
+extern KEY_BUFFER inKeyBuffer;
+extern TSI_BUFFER inLevBuffer;
+extern CTRL_STATE CtrlState;
+
 void inputInit(void);
 
 #endif /* INPUT_H_ */

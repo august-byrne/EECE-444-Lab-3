@@ -41,9 +41,9 @@ static void inLevelTask(void *p_arg);
 /*****************************************************************************************
  * Mutex & Semaphores
 *****************************************************************************************/
-static KEY_BUFFER inKeyBuffer;
-static TSI_BUFFER inLevBuffer;
-static CTRL_STATE CtrlState;
+KEY_BUFFER inKeyBuffer;
+TSI_BUFFER inLevBuffer;
+CTRL_STATE CtrlState;
 
 /*****************************************************************************************
 * input()
@@ -143,10 +143,18 @@ static void inKeyTask(void *p_arg){
 		break;
 		default:		//it is a number to add to the freq semaphore
 			if(inKeyBuffer.buffer[KEY_LEN-1] == 0){
-				for (int i = KEY_LEN-1; i > 0; i--){
-					inKeyBuffer.buffer[i] = inKeyBuffer.buffer[i-1];
+				if (10000<=(inKeyBuffer.buffer[4]*10000+inKeyBuffer.buffer[3]*1000+inKeyBuffer.buffer[2]*100+inKeyBuffer.buffer[1]*10+inKeyBuffer.buffer[0])){
+					for (int i = KEY_LEN-1; i > 0; i--){
+						inKeyBuffer.buffer[i] = inKeyBuffer.buffer[i-1];
+					}
+					inKeyBuffer.buffer[0] = kchar;
+				}else{
+					inKeyBuffer.buffer[4] = 1;
+					inKeyBuffer.buffer[3] = 0;
+					inKeyBuffer.buffer[2] = 0;
+					inKeyBuffer.buffer[1] = 0;
+					inKeyBuffer.buffer[0] = 0;
 				}
-				inKeyBuffer.buffer[0] = kchar;
 				OSSemPost(&(inKeyBuffer.flag),OS_OPT_POST_NONE,&os_err);
 			}else{}
 		}
