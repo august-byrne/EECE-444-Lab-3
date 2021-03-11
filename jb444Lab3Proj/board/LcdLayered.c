@@ -149,7 +149,11 @@ static LCD_BUFFER lcdLayers[LCD_NUM_LAYERS];
 /******************************************************************************
   lcdLayeredTask() - Handles writing to the LCD module      (Private Task)
   
+<<<<<<< Upstream, based on origin/master
         When writing to the LCD, will block until thescreen is updated.  
+=======
+        When writing to the LCD, will block until the screen is updated.
+>>>>>>> f345c38 Woot Woot Rough Draft
         This is worst-case x.xms, but will be much lower if not every character 
         on the screen is changing.
 ******************************************************************************/

@@ -131,13 +131,13 @@ void uiFreqTask(void *p_arg){
         OSSemPend(&(inKeyBuffer.flag), 0, OS_OPT_PEND_BLOCKING, (void *)0, &os_err);
         LcdDispClear(APP_LAYER_TYPE);
         LcdDispClear(APP_LAYER_CHKSUM);
-		for (int i = 0; i < KEY_LEN; i++){
-			if (inKeyBuffer.buffer[i] != 0){
-				LcdDispChar(LCD_ROW_2,5-i,APP_LAYER_FREQ,inKeyBuffer.buffer[i]);
-			}else{
-				LcdDispChar(LCD_ROW_2,5-i,APP_LAYER_FREQ,' ');
-			}
-		}
+        for (int i = 0; i < KEY_LEN; i++){
+            if (inKeyBuffer.buffer[i] != 0){
+                LcdDispChar(LCD_ROW_2,5-i,APP_LAYER_FREQ,inKeyBuffer.buffer[i]);
+            }else{
+                LcdDispChar(LCD_ROW_2,5-i,APP_LAYER_FREQ,' ');
+            }
+        }
         DB3_TURN_ON();
     }
 }
@@ -160,13 +160,13 @@ void uiDispTask(void *p_arg){
         DB4_TURN_OFF();
 
         OSSemPend(&(inKeyBuffer.enter), 0, OS_OPT_PEND_BLOCKING, (void *)0, &os_err);
-		for (int i = 0; i < KEY_LEN; i++){
-			if (inKeyBuffer.buffer[i] != 0){
-				LcdDispChar(LCD_ROW_1,5-i,APP_LAYER_FREQ,inKeyBuffer.buffer[i]);
-			}else{
-				LcdDispChar(LCD_ROW_1,5-i,APP_LAYER_FREQ,' ');
-			}
-		}
+        for (int i = 0; i < KEY_LEN; i++){
+            if (inKeyBuffer.buffer[i] != 0){
+                LcdDispChar(LCD_ROW_1,5-i,APP_LAYER_FREQ,inKeyBuffer.buffer[i]);
+            }else{
+                LcdDispChar(LCD_ROW_1,5-i,APP_LAYER_FREQ,' ');
+            }
+        }
         LcdDispString(LCD_ROW_1,LCD_COL_7,APP_LAYER_FREQ,"Hz");
 
         OSMutexPend(&FrequencyKey, 0, OS_OPT_PEND_BLOCKING, (void *)0, &os_err);
@@ -200,15 +200,15 @@ void uiVolTask(void *p_arg){
         LcdDispClear(APP_LAYER_VOL);
         switch(uiStateCntrl){
         case SINEWAVE_MODE:
-        	LcdDispDecWord(LCD_ROW_1, LCD_COL_15,APP_LAYER_VOL,lev,2,LCD_DEC_MODE_AR);
+            LcdDispDecWord(LCD_ROW_1, LCD_COL_15,APP_LAYER_VOL,lev,2,LCD_DEC_MODE_AR);
         break;
         case PULSETRAIN_MODE:
             if((lev <= 19) && (lev >= 2)){
-            	LcdDispDecWord(LCD_ROW_1,LCD_COL_14,APP_LAYER_VOL,DutyCycle[lev],2,LCD_DEC_MODE_AR);
+                LcdDispDecWord(LCD_ROW_1,LCD_COL_14,APP_LAYER_VOL,DutyCycle[lev],2,LCD_DEC_MODE_AR);
             }else if(lev <= 1){
-            	LcdDispDecWord(LCD_ROW_1,LCD_COL_15,APP_LAYER_VOL,DutyCycle[lev],1,LCD_DEC_MODE_AR);
+                LcdDispDecWord(LCD_ROW_1,LCD_COL_15,APP_LAYER_VOL,DutyCycle[lev],1,LCD_DEC_MODE_AR);
             }else{
-            	LcdDispDecWord(LCD_ROW_1,LCD_COL_13,APP_LAYER_VOL,DutyCycle[lev],3,LCD_DEC_MODE_AR);
+                LcdDispDecWord(LCD_ROW_1,LCD_COL_13,APP_LAYER_VOL,DutyCycle[lev],3,LCD_DEC_MODE_AR);
             }
             break;
         default:
@@ -242,15 +242,15 @@ void uiStateTask(void *p_arg){
         LcdDispClear(APP_LAYER_UNIT);
         if(uiStateCntrl == PULSETRAIN_MODE){
             if((lev <= 19) && (lev >= 2)){
-            	LcdDispDecWord(LCD_ROW_1,LCD_COL_14,APP_LAYER_VOL,DutyCycle[lev],2,LCD_DEC_MODE_AR);
+                LcdDispDecWord(LCD_ROW_1,LCD_COL_14,APP_LAYER_VOL,DutyCycle[lev],2,LCD_DEC_MODE_AR);
             }else if(lev <= 1){
-            	LcdDispDecWord(LCD_ROW_1,LCD_COL_15,APP_LAYER_VOL,DutyCycle[lev],1,LCD_DEC_MODE_AR);
+                LcdDispDecWord(LCD_ROW_1,LCD_COL_15,APP_LAYER_VOL,DutyCycle[lev],1,LCD_DEC_MODE_AR);
             }else{
-            	LcdDispDecWord(LCD_ROW_1,LCD_COL_13,APP_LAYER_VOL,DutyCycle[lev],3,LCD_DEC_MODE_AR);
+                LcdDispDecWord(LCD_ROW_1,LCD_COL_13,APP_LAYER_VOL,DutyCycle[lev],3,LCD_DEC_MODE_AR);
             }
             LcdDispString(LCD_ROW_1,LCD_COL_16,APP_LAYER_UNIT,"%");
         }else if(uiStateCntrl == SINEWAVE_MODE){
-        	LcdDispDecWord(LCD_ROW_1, LCD_COL_15,APP_LAYER_VOL,lev,2,LCD_DEC_MODE_AR);
+            LcdDispDecWord(LCD_ROW_1, LCD_COL_15,APP_LAYER_VOL,lev,2,LCD_DEC_MODE_AR);
             LcdDispString(LCD_ROW_1,LCD_COL_16,APP_LAYER_UNIT," ");
         }else{
             // do nothing
