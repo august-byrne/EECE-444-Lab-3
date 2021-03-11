@@ -30,14 +30,9 @@
 *              Range from 0 to (LCD_NUM_LAYERS - 1)                      *
 *              Arranged from largest number on top, down to 0 on bottom. *
 *************************************************************************/
-<<<<<<< Upstream, based on origin/master
 #define LCD_NUM_LAYERS 5
 
 #define APP_LAYER_UNIT 4
-=======
-#define LCD_NUM_LAYERS 4
-
->>>>>>> f345c38 Woot Woot Rough Draft
 #define APP_LAYER_CHKSUM 3
 #define APP_LAYER_TYPE 2
 #define APP_LAYER_VOL 1
