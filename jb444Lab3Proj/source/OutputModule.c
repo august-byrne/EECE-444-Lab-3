@@ -10,21 +10,18 @@
 #include "K65TWR_GPIO.h"
 #include "OutputModule.h"
 #include "K65TWR_GPIO.h"
+#include "arm_math.h"
 /*****************************************************************************************
 * Allocate task control blocks
 *****************************************************************************************/
-static OS_TCB SignalStateTaskTCB;
 static OS_TCB SineOutputTaskTCB;
 static OS_TCB SquareOutputTaskTCB;
-static OS_TCB AppTaskStartTCB;
 
 /*****************************************************************************************
 * Allocate task stack space.
 *****************************************************************************************/
-static CPU_STK SignalStateTaskStk[APP_CFG_TASK_START_STK_SIZE];
 static CPU_STK SineOutputTaskStk[APP_CFG_SIN_GEN_TASK_STK_SIZE];
 static CPU_STK SquareOutputTaskStk[APP_CFG_SQUARE_GEN_STK_SIZE];
-static CPU_STK AppTaskStartStk[APP_CFG_SQUARE_GEN_STK_SIZE];
 
 /******************************************************************************************
  * Defines
@@ -34,144 +31,51 @@ static CPU_STK AppTaskStartStk[APP_CFG_SQUARE_GEN_STK_SIZE];
 #define HIGH_FREQ_PRESCALER 0
 #define MID_FREQ_PRESCALAR  6u
 #define LOW_FREQ_PRESCALAR 7u
-#define UPPER_THRESHOLD_FREQ 915 //Can't use the unscaled clock at this frequency (below 0x7FFE)
-#define LOWEST_THREHOLD_FREQ 14    //Must rescale
+#define UPPER_THRESHOLD_FREQ 915 //Can't use the unscaled clock at this frequency (mod <= 0x7FFe)
+#define LOWEST_THREHOLD_FREQ 14    //Must rescale again
 #define UNSCALED_CLK_FREQ 60000000
 #define SCALED_CLK_FREQ   937500
 #define TWICE_SCALED_CLK_FREQ  468750
-#define MAX_DUTY_CYCLE 20
+#define MAX_VOL 20
 
 //Defines for Sine wave
 #define SIZE_CODE_16BIT   0x1
-#define SAMPLES_PER_BLOCK 64
-#define BYTES_PER_SAMPLE  2
-#define BYTES_PER_BUFFER  50
 #define NUM_BLOCKS        2
+#define BYTES_PER_SAMPLE  2
+#define SAMPLES_PER_BLOCK 100
+#define BYTES_PER_BLOCK             (SAMPLES_PER_BLOCK*BYTES_PER_SAMPLE)
+#define BYTES_PER_BUFFER            (NUM_BLOCKS*BYTES_PER_BLOCK)
 #define DMA_OUT_CH        0
-#define SAMPLE_FREQ       48000
+#define SAMPLE_PERIOD_Q31 44739
+#define ABS_VAL_MASK       0x7FFFFFFF
+#define DC_OFFSET 2047
 
 typedef struct{
     INT8U index;
     OS_SEM flag;
 }DMA_BLOCK_RDY;
 
-typedef enum {SINEWAVE_MODE, PULSETRAIN_MODE, WAITING_MODE} STATE;
 
 /******************************************************************************************
  * Variables
  ******************************************************************************************/
  DMA_BLOCK_RDY dmaInBlockRdy;
-
+ OS_MUTEX FreqMutexKey;
+ OS_MUTEX StateMutexKey;
+ OS_MUTEX VolMutexKey;
  static INT16S DMABuffer[NUM_BLOCKS][SAMPLES_PER_BLOCK];
+
 
 /*****************************************************************************************
 * Task Function Prototypes.
 *   - Private if in the same module as startup task. Otherwise public.
 *****************************************************************************************/
-
-
-//static void SignalStateTask(void *p_arg);
 static void SquareOutputTask(void *p_arg);
-//static void SineOutputTask(void *p_arg);
-//void DMA2_DMA18_IRQHandler(void);
-//static INT8U DMAPend(OS_TICK tout, OS_ERR *os_err_ptr);
-
-static void AppStartTask(void *p_arg);
-//void DMA2_DMA18_IRQHandler(void);
-//static INT8U PwrDMAInPend(OS_TICK tout, OS_ERR *os_err_ptr);
-
-
-
-
-void main(void) {
-    OS_ERR  os_err;
-
-    K65TWR_BootClock();
-    CPU_IntDis();               /* Disable all interrupts, OS will enable them  */
-
-    OSInit(&os_err);                    /* Initialize uC/OS-III                         */
-
-    OSTaskCreate(&AppTaskStartTCB,                  /* Address of TCB assigned to task */
-                 "Start Task",                      /* Name you want to give the task */
-                 AppStartTask,                      /* Address of the task itself */
-                 (void *) 0,                        /* p_arg is not used so null ptr */
-                 APP_CFG_TASK_START_PRIO,           /* Priority you assign to the task */
-                 &AppTaskStartStk[0],               /* Base address of task�s stack */
-                 (APP_CFG_TASK_START_STK_SIZE/10u), /* Watermark limit for stack growth */
-                 APP_CFG_TASK_START_STK_SIZE,       /* Stack size */
-                 0,                                 /* Size of task message queue */
-                 0,                                 /* Time quanta for round robin */
-                 (void *) 0,                        /* Extension pointer is not used */
-                 (OS_OPT_TASK_NONE), /* Options */
-                 &os_err);                          /* Ptr to error code destination */
-
-
-
-
-    OSStart(&os_err);               /*Start multitasking(i.e. give control to uC/OS)    */
-
-}
-
-/*****************************************************************************************
-* STARTUP TASK
-* This should run once and be suspended. Could restart everything by resuming.
-* (Resuming not tested)
-* Todd Morton, 01/06/2016
-*****************************************************************************************/
-static void AppStartTask(void *p_arg) {
-    OS_ERR os_err;
-
-    (void)p_arg;                        /* Avoid compiler warning for unused variable   */
-
-    OS_CPU_SysTickInitFreq(SYSTEM_CLOCK);
-
-    /* Initialize StatTask. This must be called when there is only one task running.
-     * Therefore, any function call that creates a new task must come after this line.
-     * Or, alternatively, you can comment out this line, or remove it. If you do, you
-     * will not have accurate CPU load information                                       */
-//    OSStatTaskCPUUsageInit(&os_err);
-
-    GpioDBugBitsInit();
-    OutputInit();
-
-
-    OSTaskCreate(&SquareOutputTaskTCB,
-                    "Square Task ",
-                    SquareOutputTask,
-                    (void *) 0,
-                    APP_CFG_SQUARE_GEN_TASK_PRIO,
-                    &SquareOutputTaskStk[0],
-                    (APP_CFG_SQUARE_GEN_STK_SIZE / 10u),
-                    APP_CFG_SQUARE_GEN_STK_SIZE,
-                    0,
-                    0,
-                    (void *) 0,
-                    (OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
-                    &os_err);
-
-
-    /*OSTaskCreate(&SineOutputTaskTCB,
-                        "Sine Task",
-                        SineOutputTask,
-                        (void *) 0,
-                        APP_CFG_SIN_GEN_TASK_PRIO,
-                        &SineOutputTaskStk[0],
-                        (APP_CFG_SQUARE_GEN_STK_SIZE / 10u),
-                        APP_CFG_SQUARE_GEN_STK_SIZE,
-                        0,
-                        0,
-                        (void *) 0,
-                        (OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
-                        &os_err);
-
-    OSTaskDel((OS_TCB *)0, &os_err);
-    */
-}
-
-
-
+static void SineOutputTask(void *p_arg);
+static INT8U DMAPend(OS_TICK tout, OS_ERR *os_err_ptr);
 
 void OutputInit(void){
+
 
     OS_ERR os_err;
 
@@ -179,7 +83,7 @@ void OutputInit(void){
     SIM->SCGC5 |= SIM_SCGC5_PORTE(1); /* Enable clock gate for PORTE */
     PORTE->PCR[8] = PORT_PCR_MUX(6); /* Set PCR for FTM output */
 
-/*
+
     //Intialization of the DMA
 //    OSSemCreate(&dmaInBlockRdy.flag, "Block Ready", 0, &os_err);
 
@@ -197,13 +101,9 @@ void OutputInit(void){
     SIM->SCGC6 |= SIM_SCGC6_PIT(1);
 
     //Make sure DMAMUX is disabled
-    //DMAMUX->CHCFG[DMA_OUT_CH] |= DMAMUX_CHCFG_ENBL(0)|DMAMUX_CHCFG_TRIG(0);
     DMAMUX->CHCFG[DMA_OUT_CH] |= ~(DMAMUX_CHCFG_ENBL_MASK|DMAMUX_CHCFG_TRIG_MASK);
 
-    //Minor Loop Mapping Enabled, Round Robin Arbitration, Debug enabled
-//    DMA0->CR = DMA_CR_EMLM(1) | DMA_CR_ERCA(1) | DMA_CR_ERGA(1) | DMA_CR_EDBG(1);
-
-
+    //Set up input for DMA.
     DMA0->TCD[DMA_OUT_CH].SADDR = DMA_SADDR_SADDR(&DMABuffer[0][0]);
 
 
@@ -253,25 +153,11 @@ void OutputInit(void){
 
     //All set to go, enable DMA channel(s)!
     DMA0->SERQ = DMA_SERQ_SERQ(DMA_OUT_CH);
-*/
 
+    OSMutexCreate(&FreqMutexKey, "Freq Mux", &os_err);
+    OSMutexCreate(&StateMutexKey, "State Mux", &os_err);
 
-/*    OSTaskCreate(&SignalStateTaskTCB,
-                "State Change Task ",
-                SignalStateTask,
-                (void *) 0,
-                APP_CFG_STATE_GEN_TASK_PRIO,
-                &SquareOutputTaskStk[0],
-                (APP_CFG_SQUARE_GEN_STK_SIZE / 10u),
-                APP_CFG_SQUARE_GEN_STK_SIZE,
-                0,
-                0,
-                (void *) 0,
-                (OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
-                &os_err); */
-
-
-    /*OSTaskCreate(&SineOutputTaskTCB,
+     OSTaskCreate(&SineOutputTaskTCB,
                     "Sine Task",
                     SineOutputTask,
                     (void *) 0,
@@ -283,9 +169,21 @@ void OutputInit(void){
                     0,
                     (void *) 0,
                     (OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
-                    &os_err); */
+                    &os_err);
 
-
+     OSTaskCreate(&SquareOutputTaskTCB,
+                     "Square Task ",
+                     SquareOutputTask,
+                     (void *) 0,
+                     APP_CFG_SQUARE_GEN_TASK_PRIO,
+                     &SquareOutputTaskStk[0],
+                     (APP_CFG_SQUARE_GEN_STK_SIZE / 10u),
+                     APP_CFG_SQUARE_GEN_STK_SIZE,
+                     0,
+                     0,
+                     (void *) 0,
+                     OS_OPT_TASK_NONE,
+                     &os_err);
 
 
 
@@ -295,20 +193,45 @@ void OutputInit(void){
 /******************************************************************************
  * Calcuates a data table and shoves it through the DMA to the DAC. Uses the DSP
  * CMSIS module to calculate the sine wave, and uses a ping pong buffer to
- * communicate with the DAC
+ * communicate with the DAC.
+ *
  *
  * Inputs: None
  * Outputs: None
- *
  ******************************************************************************/
-//static void SineOutputTask(void *p_arg){
+static void SineOutputTask(void *p_arg){
 
-  //  (void)p_arg;
+    (void)p_arg;
+    const q31_t AC_FACTOR = 0x5D1745D; // AC_FACTOR = 1.5/(20*3.3) = 1/44 in q31
+    OS_ERR os_err;
+    INT16U sample_index = 0;
+    INT8U buffer_index;
+    q31_t xarg = 0;
+    INT32U freq;
+    INT32U vol;
+    q31_t sine_value;
 
+    (void) p_arg;
+    while(1){
+        buffer_index = DMAPend(0, &os_err);
+        DB1_TURN_ON();
+        while (sample_index < SAMPLES_PER_BLOCK){
+            sine_value = arm_sin_q31(xarg); //Computes sine wave value
+            arm_mult_q31(&sine_value,&AC_FACTOR,&sine_value,1); //Multiplies by 1/20 of the volume (1.5/(3.3*20))
+            sine_value = ((sine_value*vol) >> 20) + DC_OFFSET; //applies volume level, shifts to 12 bits, and applies DC offset
 
+            DMABuffer[buffer_index][sample_index] = (INT16S)sine_value;
 
+            xarg = xarg + (freq*SAMPLE_PERIOD_Q31); //Increments counter
+            xarg = xarg & ABS_VAL_MASK; //Masks sign bit for roll over
+            sample_index++;
+        }
+        sample_index = 0;
+        DB1_TURN_OFF();
 
-//}
+    }
+
+}
 
 
 
@@ -318,15 +241,12 @@ void OutputInit(void){
  * Inputs: None
  * Outputs: None
  *
- *
- *
  ******************************************************************************/
 
     static void  SquareOutputTask(void *p_arg){
 
-
         STATE Mode = PULSETRAIN_MODE;
-        INT16U freq = 15;
+        INT16U freq = 915;
         INT16U mod;
         INT32U duty;
         INT8U vol = 20;
@@ -342,7 +262,7 @@ void OutputInit(void){
 
                 if(freq <= LOWEST_THREHOLD_FREQ){
                     //System Clock, Centered Pulse, Prescaler
-                    FTM3->SC = FTM_SC_CLKS(1)|FTM_SC_CPWMS(1)|FTM_SC_PS(7);
+                    FTM3->SC = FTM_SC_CLKS(1)|FTM_SC_CPWMS(1)|FTM_SC_PS(LOW_FREQ_PRESCALAR);
 
                     //PWM polarity
                     FTM3->CONTROLS[3].CnSC = FTM_CnSC_ELSA(0)|FTM_CnSC_ELSB(1);
@@ -355,15 +275,15 @@ void OutputInit(void){
               }
 
 
-                else if((freq >= LOWEST_THREHOLD_FREQ) && (freq <= UPPER_THRESHOLD_FREQ)){
-                    FTM3->SC = FTM_SC_CLKS(1)|FTM_SC_CPWMS(1)|FTM_SC_PS(6);
+                else if((freq > LOWEST_THREHOLD_FREQ) && (freq <= UPPER_THRESHOLD_FREQ)){
+                    FTM3->SC = FTM_SC_CLKS(1)|FTM_SC_CPWMS(1)|FTM_SC_PS(MID_FREQ_PRESCALAR);
                     FTM3->CONTROLS[3].CnSC = FTM_CnSC_ELSA(0)|FTM_CnSC_ELSB(1);
                     mod = SCALED_CLK_FREQ/(freq*2);
                     FTM3->MOD = FTM_MOD_MOD(mod);
                 }
 
                 else{
-                    FTM3->SC = FTM_SC_CLKS(1)|FTM_SC_CPWMS(1)|FTM_SC_PS(NO_PRESCALER);
+                    FTM3->SC = FTM_SC_CLKS(1)|FTM_SC_CPWMS(1)|FTM_SC_PS(HIGH_FREQ_PRESCALER);
                     FTM3->CONTROLS[3].CnSC = FTM_CnSC_ELSA(0)|FTM_CnSC_ELSB(1);
                     mod = UNSCALED_CLK_FREQ/(freq*2);
                     FTM3->MOD = FTM_MOD_MOD(mod);
@@ -371,7 +291,7 @@ void OutputInit(void){
                 }
 
             //Computes duty cycle based on volume and inputs
-            duty = ((INT32U)mod * (INT32U)vol) / MAX_DUTY_CYCLE;
+            duty = ((INT32U)mod * (INT32U)vol) / MAX_VOL;
             //Set signal pulse width (duty cycle)
             FTM3->CONTROLS[3].CnV = FTM_CnV_VAL((INT16U)duty);
 
@@ -384,14 +304,12 @@ void OutputInit(void){
 
     }
 
-
-
 /****************************************************************************************
  * DMA Interrupt Handler for the sample stream
  * 08/30/2015 TDM
  ***************************************************************************************/
 
-/*void DMA2_DMA18_IRQHandler(void){
+void DMA0_DMA16_IRQHandler(void){
     OS_ERR os_err;
     OSIntEnter();
     DB1_TURN_ON();
@@ -400,14 +318,13 @@ void OutputInit(void){
     OSSemPost(&(dmaInBlockRdy.flag),OS_OPT_POST_1,&os_err);
     DB1_TURN_OFF();
     OSIntExit();
-} */
+}
 
 /****************************************************************************************
- * DMA Interrupt Handler for the sample stream
- * 08/30/2015 TDM
- ***************************************************************************************/
-/*static INT8U DMAPend(OS_TICK tout, OS_ERR *os_err_ptr){
-
-    OSSemPend(&(dmaInBlockRdy.flag), tout, OS_OPT_PEND_BLOCKING,(void *)0, os_err_ptr);
-    return dmaInBlockRdy.index;
-}*/
+* DMA Interrupt Handler for the sample stream
+* 08/30/2015 TDM
+***************************************************************************************/
+static INT8U DMAPend(OS_TICK tout, OS_ERR *os_err_ptr){
+        OSSemPend(&(dmaInBlockRdy.flag), tout, OS_OPT_PEND_BLOCKING,(void *)0, os_err_ptr);
+        return dmaInBlockRdy.index;
+ }
