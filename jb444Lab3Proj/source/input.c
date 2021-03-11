@@ -2,7 +2,7 @@
  * input.c
  *  This is all of the input for the function generator of EECE444 Lab 3
  *  Created on: Mar 3, 2021
- *  Lasted Edited On: Mar 7 2021
+ *  Lasted Edited On: Mar 14 2021
  *      Author: August Byrne
  */
 #include "app_cfg.h"
@@ -18,6 +18,23 @@
 * Variable Defines Here
 *****************************************************************************************/
 #define ASCII_0 48
+
+typedef struct {
+	INT8U buffer[KEY_LEN];
+	OS_SEM flag;
+	OS_SEM enter;
+} KEY_BUFFER;
+
+typedef struct{
+    INT8U buffer;
+    OS_SEM flag;
+}TSI_BUFFER;
+
+typedef struct{
+    STATE buffer;
+    OS_SEM flag;
+}CTRL_STATE;
+
 /*****************************************************************************************
 * Allocate task control blocks
 *****************************************************************************************/
@@ -37,6 +54,9 @@ static CPU_STK InLevelTaskStartStk[APP_CFG_INLEVEL_STK_SIZE];
 void inputInit(void);
 static void inKeyTask(void *p_arg);
 static void inLevelTask(void *p_arg);
+INT8U* getInKeyPend(INT8U pendMode, INT16U tout, OS_ERR *os_err);
+INT8U getInLevPend(INT16U tout, OS_ERR *os_err);
+STATE getInStatePend(INT16U tout, OS_ERR *os_err);
 
 /*****************************************************************************************
  * Mutex & Semaphores
@@ -188,3 +208,19 @@ static void inLevelTask(void *p_arg){
 	}
 }
 
+INT8U* getInKeyPend(INT8U pendMode, INT16U tout, OS_ERR *os_err){
+	if(pendMode == 0){
+		OSSemPend(&(inKeyBuffer.enter),tout, OS_OPT_PEND_BLOCKING, (CPU_TS *)0, os_err);
+	}else if(pendMode == 1){
+		OSSemPend(&(inKeyBuffer.flag),tout, OS_OPT_PEND_BLOCKING, (CPU_TS *)0, os_err);
+	}else{}
+	return inKeyBuffer.buffer;
+}
+INT8U getInLevPend(INT16U tout, OS_ERR *os_err){
+	OSSemPend(&(inLevBuffer.flag),tout, OS_OPT_PEND_BLOCKING, (CPU_TS *)0, os_err);
+	return inLevBuffer.buffer;
+}
+STATE getInStatePend(INT16U tout, OS_ERR *os_err){
+	OSSemPend(&(CtrlState.flag),tout, OS_OPT_PEND_BLOCKING, (CPU_TS *)0, os_err);
+	return CtrlState.buffer;
+}
