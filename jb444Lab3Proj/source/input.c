@@ -2,7 +2,7 @@
  * input.c
  *  This is all of the input for the function generator of EECE444 Lab 3
  *  Created on: Mar 3, 2021
- *  Lasted Edited On: Mar 7 2021
+ *  Lasted Edited On: Mar 11 2021
  *      Author: August Byrne
  */
 #include "app_cfg.h"
@@ -43,7 +43,8 @@ static void inLevelTask(void *p_arg);
 *****************************************************************************************/
 KEY_BUFFER inKeyBuffer;
 TSI_BUFFER inLevBuffer;
-CTRL_STATE CtrlState;
+STATE CtrlState;
+OS_MUTEX CtrlStateKey;
 
 /*****************************************************************************************
 * input()
@@ -56,8 +57,10 @@ void inputInit(void){
 	TSIInit();
 	KeyInit();
 
-	OSSemCreate(&(CtrlState.flag),"Key Press Buffer",0,&os_err);
-	CtrlState.buffer = WAITING_MODE;
+	OSMutexCreate(&CtrlStateKey, "Control State Key", &os_err);
+	OSMutexPend(&CtrlStateKey,0,OS_OPT_PEND_BLOCKING,(CPU_TS *)0,&os_err);
+	CtrlState = WAITING_MODE;
+	OSMutexPost(&CtrlStateKey,OS_OPT_POST_NONE,&os_err);
 	OSSemCreate(&(inKeyBuffer.flag),"Key Press Buffer",0,&os_err);
 	OSSemCreate(&(inKeyBuffer.enter),"Key Press Enter",0,&os_err);
 	for (int i = 0; i < KEY_LEN; ++i){
@@ -111,24 +114,27 @@ static void inKeyTask(void *p_arg){
 				inKeyBuffer.buffer[i] = 0;
 			}
 			OSSemPost(&(inKeyBuffer.flag),OS_OPT_POST_NONE,&os_err);
-			CtrlState.buffer = SINEWAVE_MODE;
-			OSSemPost(&(CtrlState.flag),OS_OPT_POST_NONE,&os_err);
+			OSMutexPend(&CtrlStateKey,0,OS_OPT_PEND_BLOCKING,(CPU_TS *)0,&os_err);
+			CtrlState = SINEWAVE_MODE;
+			OSMutexPost(&CtrlStateKey,OS_OPT_POST_NONE,&os_err);
 		break;
 		case DC2:		//'B' changes CtrlState semaphore to square wave mode
 			for (int i = 0; i < KEY_LEN; i++){
 				inKeyBuffer.buffer[i] = 0;
 			}
 			OSSemPost(&(inKeyBuffer.flag),OS_OPT_POST_NONE,&os_err);
-			CtrlState.buffer = PULSETRAIN_MODE;
-			OSSemPost(&(CtrlState.flag),OS_OPT_POST_NONE,&os_err);
+			OSMutexPend(&CtrlStateKey,0,OS_OPT_PEND_BLOCKING,(CPU_TS *)0,&os_err);
+			CtrlState = PULSETRAIN_MODE;
+			OSMutexPost(&CtrlStateKey,OS_OPT_POST_NONE,&os_err);
 		break;
 		case DC3:		//'C' changes CtrlState semaphore to square wave mode
 			for (int i = 0; i < KEY_LEN; i++){
 				inKeyBuffer.buffer[i] = 0;
 			}
 			OSSemPost(&(inKeyBuffer.flag),OS_OPT_POST_NONE,&os_err);
-			CtrlState.buffer = WAITING_MODE;
-			OSSemPost(&(CtrlState.flag),OS_OPT_POST_NONE,&os_err);
+			OSMutexPend(&CtrlStateKey,0,OS_OPT_PEND_BLOCKING,(CPU_TS *)0,&os_err);
+			CtrlState = WAITING_MODE;
+			OSMutexPost(&CtrlStateKey,OS_OPT_POST_NONE,&os_err);
 		break;
 		case DC4:		//'D' removes the last number from the freq semaphore
 			for (int i = 0; i < KEY_LEN-1; i++){

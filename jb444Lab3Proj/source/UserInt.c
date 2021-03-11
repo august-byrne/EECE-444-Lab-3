@@ -236,8 +236,12 @@ void uiStateTask(void *p_arg){
     (void)p_arg;
 
     while(1){
-        OSSemPend(&(CtrlState.flag),0 , OS_OPT_PEND_BLOCKING, (void *)0, &os_err);
-        uiStateCntrl = CtrlState.buffer;
+		OSTimeDly(20,OS_OPT_TIME_PERIODIC,&os_err);     /* Task period = 20ms   */
+
+		OSMutexPend(&CtrlStateKey,0,OS_OPT_PEND_BLOCKING,(CPU_TS *)0,&os_err);
+		uiStateCntrl = CtrlState;
+		OSMutexPost(&CtrlStateKey,OS_OPT_POST_NONE,&os_err);
+
         LcdDispClear(APP_LAYER_VOL);
         LcdDispClear(APP_LAYER_UNIT);
         if(uiStateCntrl == PULSETRAIN_MODE){
