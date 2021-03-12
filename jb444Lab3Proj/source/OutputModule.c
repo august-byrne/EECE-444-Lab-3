@@ -216,17 +216,7 @@ static void SineOutputTask(void *p_arg){
 
     (void) p_arg;
     while(1){
-        OSMutexPend(&VolumeKey, 0,OS_OPT_POST_NONE, (CPU_TS *)0, &os_err);
-        OSMutexPend(&CtrlStateKey,0,OS_OPT_PEND_BLOCKING,(CPU_TS *)0,&os_err);
-        OSMutexPend(&FrequencyKey, 0, OS_OPT_PEND_BLOCKING, (CPU_TS *)0, &os_err);
 
-        vol = (INT32U) inLevBuffer.buffer;
-        freq = inKeyBuffer.buffer[4]*10000 + inKeyBuffer.buffer[3]*1000 + inKeyBuffer.buffer[2]*100 + inKeyBuffer.buffer[1]*10 + inKeyBuffer.buffer[0];
-        mode = CtrlState;
-
-        OSMutexPost(&VolumeKey,OS_OPT_POST_NONE,&os_err);
-        OSMutexPost(&CtrlStateKey,OS_OPT_POST_NONE,&os_err);
-        OSMutexPost(&FrequencyKey, OS_OPT_POST_NONE, &os_err);
 
         buffer_index = DMAPend(0, &os_err);
         DB1_TURN_ON();
@@ -272,18 +262,6 @@ static void SineOutputTask(void *p_arg){
 
         while(1){
 
-
-            OSMutexPend(&VolumeKey, 0,OS_OPT_POST_NONE, (CPU_TS *)0,&os_err);
-            OSMutexPend(&CtrlStateKey,0,OS_OPT_PEND_BLOCKING,(CPU_TS *)0,&os_err);
-            OSMutexPend(&FrequencyKey, 0, OS_OPT_PEND_BLOCKING, (CPU_TS *)0, &os_err);
-
-            vol = (INT32U) inLevBuffer.buffer;
-            freq = inKeyBuffer.buffer[4]*10000 + inKeyBuffer.buffer[3]*1000 + inKeyBuffer.buffer[2]*100 + inKeyBuffer.buffer[1]*10 + inKeyBuffer.buffer[0];
-            mode = CtrlState;
-
-            OSMutexPost(&VolumeKey,OS_OPT_POST_NONE,&os_err);
-            OSMutexPost(&CtrlStateKey,OS_OPT_POST_NONE,&os_err);
-            OSMutexPost(&FrequencyKey, OS_OPT_POST_NONE, &os_err);
 
 
             DB0_TURN_ON();

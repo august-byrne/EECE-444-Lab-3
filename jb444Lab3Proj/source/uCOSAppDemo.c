@@ -22,10 +22,6 @@
 #include "LcdLayered.h"
 #include "input.h"
 #include "UserInt.h"
-<<<<<<< HEAD
-#include "OutputModule.h"
-=======
->>>>>>> branch 'master' of https://gitlab.etec.wwu.edu/binderj/jb444lab3repo.git
 
 #define LOWADDR (INT32U) 0x00000000			//low memory address
 #define HIGHADRR (INT32U) 0x001FFFFF		//high memory address
@@ -93,15 +89,9 @@ static void AppStartTask(void *p_arg) {
 //    OSStatTaskCPUUsageInit(&os_err);
 
 	GpioDBugBitsInit();
-<<<<<<< HEAD
-	inputInit();
-	UIInit();
-	OutputInit();
-=======
 	LcdInit();
 	inputInit();
 	UIInit();
->>>>>>> branch 'master' of https://gitlab.etec.wwu.edu/binderj/jb444lab3repo.git
 
 	//Initial program checksum, which is displayed on the second row of the LCD
 	INT8U math_val = CalcChkSum((INT8U *)LOWADDR,(INT8U *)HIGHADRR);
