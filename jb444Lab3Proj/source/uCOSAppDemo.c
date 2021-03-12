@@ -90,7 +90,6 @@ static void AppStartTask(void *p_arg) {
 //    OSStatTaskCPUUsageInit(&os_err);
 
 	GpioDBugBitsInit();
-	LcdInit();
 	inputInit();
 	UIInit();
 	OutputInit();
