@@ -1,19 +1,21 @@
-/*******************************************************************************
+/*
  * MemTest.h
- *
- * This header contains the CalcChkSum functionn and makes it public. That
- * function calculates the check sum found in a range of addresses.
- *
- *
- * Jacob Bindernagel, 10/19/2020
- *
- *****************************************************************************/
+ *	Header file for MemTest which has a prototype of CalcChkSum
+ *  Created on: Oct 19, 2020
+ *      Author: August
+ */
 
 #ifndef MEMTEST_H_
 #define MEMTEST_H_
 
-INT16U CalcChkSum(INT8U *start_addr, INT8U *end_addr);
-
-
+/********************************************************************
+* BIOGetStrg() - Calculates the checksum between two addresses.
+*
+* Return value: The calculated checksum from start to end address
+*
+* Arguments: *startaddr is a pointer to the starting address
+*            *endaddr is a pointer to the starting address
+********************************************************************/
+INT16U CalcChkSum(INT8U *startaddr, INT8U *endaddr);
 
 #endif /* MEMTEST_H_ */

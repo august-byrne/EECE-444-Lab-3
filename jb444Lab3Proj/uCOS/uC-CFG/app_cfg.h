@@ -47,10 +47,19 @@
 */
 
 #define APP_CFG_TASK_START_PRIO       2u
-
-#define APP_CFG_STATE_GEN_TASK_PRIO        22u
-#define APP_CFG_SIN_GEN_TASK_PRIO          24u
-#define APP_CFG_SQUARE_GEN_TASK_PRIO       26u
+#define APP_CFG_TASK_START_PRIO       2u
+#define APP_CFG_KEY_TASK_PRIO         6u    //for uCOSKey.c
+#define APP_CFG_TSI_TASK_PRIO         8u    //for K65TWR_TSI.c
+#define APP_CFG_INKEY_TASK_PRIO       10u   //for inKey Task in input.c
+#define APP_CFG_INLEVEL_TASK_PRIO     12u
+#define APP_CFG_LCD_TASK_PRIO         14u
+#define APP_CFG_UIF_TASK_PRIO         16u
+#define APP_CFG_UIV_TASK_PRIO         18u
+#define APP_CFG_UID_TASK_PRIO         20u
+#define APP_CFG_UIS_TASK_PRIO         22u
+#define APP_CFG_VOL_TASK_PRIO         24u
+#define APP_CFG_SIN_GEN_TASK_PRIO     26u
+#define APP_CFG_SQUARE_GEN_TASK_PRIO  28u
 
 /*
 *********************************************************************************************************
@@ -60,6 +69,17 @@
 #define APP_CFG_SQUARE_GEN_STK_SIZE    128u
 #define APP_CFG_SIN_GEN_TASK_STK_SIZE 128u
 #define APP_CFG_TASK_START_STK_SIZE 128u
-
+#define APP_CFG_TASK_START_STK_SIZE 128u
+#define APP_CFG_KEY_TASK_STK_SIZE   128u
+#define APP_CFG_TSI_TASK_STK_SIZE   128u
+#define APP_CFG_INKEY_STK_SIZE      128u
+#define APP_CFG_INLEVEL_STK_SIZE    128u
+#define APP_CFG_LCD_TASK_STK_SIZE   128u
+#define APP_CFG_UIF_TASK_STK_SIZE   128u
+#define APP_CFG_UID_TASK_STK_SIZE   128u
+#define APP_CFG_UIV_TASK_STK_SIZE   128u
+#define APP_CFG_LCD_TASK_STK_SIZE   128u
+#define APP_CFG_UIS_TASK_STK_SIZE   128u
+#define APP_CFG_VOL_STK_SIZE        128su
 
 #endif

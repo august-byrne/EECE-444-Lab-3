@@ -2,6 +2,9 @@
 * This module operates the DAC and the Flex timer in order to generate a signal between
 * 10 to 10k Hz. It will be taking taking in the volume, which controls the volume of the
 * Sine wave and the duty cycle of the square wave
+*
+* Jacob Bindernagel
+* 3/11/2021
 *****************************************************************************************/
 #include "app_cfg.h"
 #include "os.h"
@@ -11,6 +14,8 @@
 #include "OutputModule.h"
 #include "K65TWR_GPIO.h"
 #include "arm_math.h"
+#include "input.h"
+#include "UserInt.h"
 /*****************************************************************************************
 * Allocate task control blocks
 *****************************************************************************************/
@@ -55,14 +60,10 @@ typedef struct{
     OS_SEM flag;
 }DMA_BLOCK_RDY;
 
-
 /******************************************************************************************
  * Variables
  ******************************************************************************************/
  DMA_BLOCK_RDY dmaInBlockRdy;
- OS_MUTEX FreqMutexKey;
- OS_MUTEX StateMutexKey;
- OS_MUTEX VolMutexKey;
  static INT16S DMABuffer[NUM_BLOCKS][SAMPLES_PER_BLOCK];
 
 
@@ -73,6 +74,7 @@ typedef struct{
 static void SquareOutputTask(void *p_arg);
 static void SineOutputTask(void *p_arg);
 static INT8U DMAPend(OS_TICK tout, OS_ERR *os_err_ptr);
+void DMA0_DMA16_IRQHandler(void);
 
 void OutputInit(void){
 
@@ -154,8 +156,6 @@ void OutputInit(void){
     //All set to go, enable DMA channel(s)!
     DMA0->SERQ = DMA_SERQ_SERQ(DMA_OUT_CH);
 
-    OSMutexCreate(&FreqMutexKey, "Freq Mux", &os_err);
-    OSMutexCreate(&StateMutexKey, "State Mux", &os_err);
 
      OSTaskCreate(&SineOutputTaskTCB,
                     "Sine Task",
@@ -190,6 +190,8 @@ void OutputInit(void){
 
 }
 
+
+
 /******************************************************************************
  * Calcuates a data table and shoves it through the DMA to the DAC. Uses the DSP
  * CMSIS module to calculate the sine wave, and uses a ping pong buffer to
@@ -205,16 +207,31 @@ static void SineOutputTask(void *p_arg){
     const q31_t AC_FACTOR = 0x5D1745D; // AC_FACTOR = 1.5/(20*3.3) = 1/44 in q31
     OS_ERR os_err;
     INT16U sample_index = 0;
-    INT8U buffer_index;
+    INT16U buffer_index;
     q31_t xarg = 0;
     INT32U freq;
     INT32U vol;
     q31_t sine_value;
+    STATE mode;
 
     (void) p_arg;
     while(1){
+        OSMutexPend(&VolumeKey, 0,OS_OPT_POST_NONE, (CPU_TS *)0, &os_err);
+        OSMutexPend(&CtrlStateKey,0,OS_OPT_PEND_BLOCKING,(CPU_TS *)0,&os_err);
+        OSMutexPend(&FrequencyKey, 0, OS_OPT_PEND_BLOCKING, (CPU_TS *)0, &os_err);
+
+        vol = (INT32U) inLevBuffer.buffer;
+        freq = inKeyBuffer.buffer[4]*10000 + inKeyBuffer.buffer[3]*1000 + inKeyBuffer.buffer[2]*100 + inKeyBuffer.buffer[1]*10 + inKeyBuffer.buffer[0];
+        mode = CtrlState;
+
+        OSMutexPost(&VolumeKey,OS_OPT_POST_NONE,&os_err);
+        OSMutexPost(&CtrlStateKey,OS_OPT_POST_NONE,&os_err);
+        OSMutexPost(&FrequencyKey, OS_OPT_POST_NONE, &os_err);
+
         buffer_index = DMAPend(0, &os_err);
         DB1_TURN_ON();
+
+        if(mode == SINEWAVE_MODE){
         while (sample_index < SAMPLES_PER_BLOCK){
             sine_value = arm_sin_q31(xarg); //Computes sine wave value
             arm_mult_q31(&sine_value,&AC_FACTOR,&sine_value,1); //Multiplies by 1/20 of the volume (1.5/(3.3*20))
@@ -228,7 +245,7 @@ static void SineOutputTask(void *p_arg){
         }
         sample_index = 0;
         DB1_TURN_OFF();
-
+        }
     }
 
 }
@@ -245,20 +262,33 @@ static void SineOutputTask(void *p_arg){
 
     static void  SquareOutputTask(void *p_arg){
 
-        STATE Mode = PULSETRAIN_MODE;
-        INT16U freq = 915;
+        OS_ERR os_err;
+        INT16U freq;
         INT16U mod;
         INT32U duty;
-        INT8U vol = 20;
+        INT8U vol;
+        STATE mode;
         (void) p_arg;
 
         while(1){
 
 
-        DB0_TURN_ON();
-        if(Mode == PULSETRAIN_MODE){
+            OSMutexPend(&VolumeKey, 0,OS_OPT_POST_NONE, (CPU_TS *)0,&os_err);
+            OSMutexPend(&CtrlStateKey,0,OS_OPT_PEND_BLOCKING,(CPU_TS *)0,&os_err);
+            OSMutexPend(&FrequencyKey, 0, OS_OPT_PEND_BLOCKING, (CPU_TS *)0, &os_err);
+
+            vol = (INT32U) inLevBuffer.buffer;
+            freq = inKeyBuffer.buffer[4]*10000 + inKeyBuffer.buffer[3]*1000 + inKeyBuffer.buffer[2]*100 + inKeyBuffer.buffer[1]*10 + inKeyBuffer.buffer[0];
+            mode = CtrlState;
+
+            OSMutexPost(&VolumeKey,OS_OPT_POST_NONE,&os_err);
+            OSMutexPost(&CtrlStateKey,OS_OPT_POST_NONE,&os_err);
+            OSMutexPost(&FrequencyKey, OS_OPT_POST_NONE, &os_err);
 
 
+            DB0_TURN_ON();
+
+            if(mode == PULSETRAIN_MODE){
 
                 if(freq <= LOWEST_THREHOLD_FREQ){
                     //System Clock, Centered Pulse, Prescaler
@@ -272,7 +302,7 @@ static void SineOutputTask(void *p_arg){
 
                     //Sticks value in FTM's mod register
                     FTM3->MOD = FTM_MOD_MOD(mod);
-              }
+                }
 
 
                 else if((freq > LOWEST_THREHOLD_FREQ) && (freq <= UPPER_THRESHOLD_FREQ)){
@@ -290,17 +320,17 @@ static void SineOutputTask(void *p_arg){
 
                 }
 
-            //Computes duty cycle based on volume and inputs
-            duty = ((INT32U)mod * (INT32U)vol) / MAX_VOL;
-            //Set signal pulse width (duty cycle)
-            FTM3->CONTROLS[3].CnV = FTM_CnV_VAL((INT16U)duty);
+                //Computes duty cycle based on volume and inputs
+                duty = ((INT32U)mod * (INT32U)vol) / MAX_VOL;
+                //Set signal pulse width (duty cycle)
+                FTM3->CONTROLS[3].CnV = FTM_CnV_VAL((INT16U)duty);
 
-            DB0_TURN_OFF();
+                DB0_TURN_OFF();
+                }
+            else{
+                DB0_TURN_OFF();
             }
-        else{
-            DB0_TURN_OFF();
-        }
-        }
+            }
 
     }
 
