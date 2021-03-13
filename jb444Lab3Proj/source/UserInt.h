@@ -16,5 +16,4 @@ INT16U UIFreqGet(void);
 INT8U UILevGet(void);
 STATE UIStateGet(void);
 
-
 #endif /* USERINT_H_ */
