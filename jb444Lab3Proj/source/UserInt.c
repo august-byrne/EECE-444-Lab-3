@@ -39,8 +39,10 @@ static STATE uiStateCntrl = WAITING_MODE;
 static INT8U lev = 0;
 static INT16U frequency = 0;
 
+
 OS_MUTEX FrequencyKey;
 OS_MUTEX VolumeKey;
+OS_MUTEX StateKey;
 
 static const INT8U DutyCycle[21] = {0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100};
 
@@ -266,6 +268,11 @@ void uiStateTask(void *p_arg){
         }else{
             // do nothing
         }
+
+        OSMutexPend(&StateKey, 0, OS_OPT_PEND_BLOCKING, (void *)0, &os_err);
+        uiStateCntrl = CtrlState.buffer;
+        OSMutexPost(&StateKey, OS_OPT_POST_NONE, &os_err);
+
     }
 
 }
@@ -291,5 +298,17 @@ INT8U UILevGet(void){
     OSMutexPost(&VolumeKey, OS_OPT_POST_NONE, &os_err);
 
     return Level;
+
+}
+
+STATE UIStateGet(void){
+    STATE State;
+    OS_ERR os_err;
+
+    OSMutexPend(&StateKey, 0, OS_OPT_PEND_BLOCKING, (void *)0, &os_err);
+    State = uiStateCntrl;
+    OSMutexPost(&StateKey, OS_OPT_POST_NONE, &os_err);
+
+    return State;
 
 }
