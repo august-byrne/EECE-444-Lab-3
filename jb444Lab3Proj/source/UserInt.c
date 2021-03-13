@@ -4,15 +4,16 @@
 *
 * Rachel Givens 03/04/2020
 *******************************************************************************/
-#include "UserInt.h"
-#include "MCUType.h"
-#include "os.h"
 #include "app_cfg.h"
-#include "K65TWR_GPIO.h"
+#include "UserInt.h"
+#include "os.h"
+#include "MCUType.h"
 #include "K65TWR_ClkCfg.h"
+#include "K65TWR_GPIO.h"
 #include "MemTest.h"
 #include "LcdLayered.h"
 #include "uCOSKey.h"
+
 #include "input.h"
 
 static OS_TCB uiFreqTaskTCB;
@@ -30,11 +31,16 @@ static void uiDispTask(void *p_arg);
 static void uiVolTask(void *p_arg);
 static void uiStateTask(void *p_arg);
 
+INT16U UIFreqGet(void);
+INT8U UILevGet(void);
+
 static STATE uiStateCntrl = WAITING_MODE;
 
 static INT8U lev = 0;
+static INT16U frequency = 0;
 
 OS_MUTEX FrequencyKey;
+OS_MUTEX VolumeKey;
 
 static const INT8U DutyCycle[21] = {0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100};
 
@@ -107,6 +113,7 @@ void UIInit(void){
                  &os_err);
 
     OSMutexCreate(&FrequencyKey, "Frequency", &os_err);
+    OSMutexCreate(&VolumeKey, "Volume", &os_err);
 
 }
 
@@ -152,7 +159,7 @@ void uiFreqTask(void *p_arg){
 
 void uiDispTask(void *p_arg){
     OS_ERR os_err;
-    INT16U frequency;
+
 
     (void)p_arg;
 
@@ -215,6 +222,10 @@ void uiVolTask(void *p_arg){
         break;
         }
 
+        OSMutexPend(&VolumeKey, 0, OS_OPT_PEND_BLOCKING, (void *)0, &os_err);
+        lev = inLevBuffer.buffer;
+        OSMutexPost(&VolumeKey, OS_OPT_POST_NONE, &os_err);
+
         }
 
         DB5_TURN_ON();
@@ -256,5 +267,29 @@ void uiStateTask(void *p_arg){
             // do nothing
         }
     }
+
+}
+
+INT16U UIFreqGet(void){
+    INT16U Freq;
+    OS_ERR os_err;
+
+    OSMutexPend(&FrequencyKey, 0, OS_OPT_PEND_BLOCKING, (void *)0, &os_err);
+    Freq = frequency;
+    OSMutexPost(&FrequencyKey, OS_OPT_POST_NONE, &os_err);
+
+    return Freq;
+
+}
+
+INT8U UILevGet(void){
+    INT8U Level;
+    OS_ERR os_err;
+
+    OSMutexPend(&VolumeKey, 0, OS_OPT_PEND_BLOCKING, (void *)0, &os_err);
+    Level = lev;
+    OSMutexPost(&VolumeKey, OS_OPT_POST_NONE, &os_err);
+
+    return Level;
 
 }
