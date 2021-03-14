@@ -56,6 +56,8 @@
 #define APP_CFG_UIV_TASK_PRIO         18u
 #define APP_CFG_UID_TASK_PRIO         20u
 #define APP_CFG_UIS_TASK_PRIO         22u
+#define APP_CFG_SIN_GEN_TASK_PRIO     24u
+#define APP_CFG_SQUARE_GEN_TASK_PRIO  26u
 
 /*
 *********************************************************************************************************
@@ -74,5 +76,7 @@
 #define APP_CFG_UIV_TASK_STK_SIZE   128u
 #define APP_CFG_LCD_TASK_STK_SIZE   128u
 #define APP_CFG_UIS_TASK_STK_SIZE   128u
+#define APP_CFG_SIN_GEN_TASK_STK_SIZE 128u
+#define APP_CFG_SQUARE_GEN_STK_SIZE 128u
 
 #endif

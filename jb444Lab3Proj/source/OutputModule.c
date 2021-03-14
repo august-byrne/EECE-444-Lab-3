@@ -209,6 +209,7 @@ static void SineOutputTask(void *p_arg){
     INT16U sample_index = 0;
     INT16U buffer_index;
     q31_t xarg = 0;
+    q31_t xarg_inc;
     INT32U freq;
     INT32U vol;
     q31_t sine_value;
@@ -237,7 +238,7 @@ static void SineOutputTask(void *p_arg){
 
             DMABuffer[buffer_index][sample_index] = (INT16S)sine_value;
 
-            xarg = xarg + (freq*SAMPLE_PERIOD_Q31); //Increments counter
+            xarg = xarg + xarg_inc; //Increments counter
             xarg = xarg & ABS_VAL_MASK; //Masks sign bit for roll over
             sample_index++;
         }
@@ -280,12 +281,9 @@ static void SineOutputTask(void *p_arg){
 
             mode = UIStateGet();
 
-<<<<<<< HEAD
-=======
 
             DB0_TURN_ON();
 
->>>>>>> branch 'Jacob's_Branch' of https://gitlab.etec.wwu.edu/binderj/jb444lab3repo.git
             if(mode == PULSETRAIN_MODE){
                 freq = UIFreqGet();
                 vol = UILevGet();
@@ -328,7 +326,9 @@ static void SineOutputTask(void *p_arg){
                 DB0_TURN_OFF();
                 }
             else{
-                DB0_TURN_OFF();
+
+                OSSemPend(&(CtrlState.flag_square),0 , OS_OPT_PEND_BLOCKING, (void *)0, &os_err);
+                mode = CtrlState.buffer;
             }
             }
 
