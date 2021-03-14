@@ -47,17 +47,17 @@
 */
 
 #define APP_CFG_TASK_START_PRIO       2u
-#define APP_CFG_KEY_TASK_PRIO         6u	//for uCOSKey.c
-#define APP_CFG_TSI_TASK_PRIO         8u	//for K65TWR_TSI.c
-#define APP_CFG_INKEY_TASK_PRIO       10u	//for inKey Task in input.c
-#define APP_CFG_INLEVEL_TASK_PRIO     12u	//for inLevel Task in input.c
-#define APP_CFG_LCD_TASK_PRIO         14u	//for inLevel Task in input.c
-#define APP_CFG_UIF_TASK_PRIO         16u
-#define APP_CFG_UIV_TASK_PRIO         18u
-#define APP_CFG_UID_TASK_PRIO         20u
-#define APP_CFG_UIS_TASK_PRIO         22u
-#define APP_CFG_SIN_GEN_TASK_PRIO     24u
-#define APP_CFG_SQUARE_GEN_TASK_PRIO  26u
+#define APP_CFG_KEY_TASK_PRIO         5u	//for uCOSKey.c
+#define APP_CFG_TSI_TASK_PRIO         6u	//for K65TWR_TSI.c
+#define APP_CFG_INKEY_TASK_PRIO       7u	//for inKey Task in input.c
+#define APP_CFG_INLEVEL_TASK_PRIO     8u	//for inLevel Task in input.c
+#define APP_CFG_LCD_TASK_PRIO         9u	//for inLevel Task in input.c
+#define APP_CFG_UIF_TASK_PRIO         10u
+#define APP_CFG_UIV_TASK_PRIO         11u
+#define APP_CFG_UID_TASK_PRIO         12u
+#define APP_CFG_UIS_TASK_PRIO         13u
+#define APP_CFG_SIN_GEN_TASK_PRIO     14u
+#define APP_CFG_SQUARE_GEN_TASK_PRIO  15u
 /*
 *********************************************************************************************************
 *                                            TASK STACK SIZES
