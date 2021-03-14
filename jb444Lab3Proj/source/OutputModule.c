@@ -219,15 +219,16 @@ static void SineOutputTask(void *p_arg){
     while(1){
 
 
-        freq = UIFreqGet();
-        vol = UILevGet();
-        mode = UIStateGet();
 
+        mode = UIStateGet();
 
         DB1_TURN_OFF();
 
         if(mode == SINEWAVE_MODE){
 
+
+            freq = UIFreqGet();
+            vol = UILevGet();
             buffer_index = DMAPend(0, &os_err);
             xarg_inc = freq*SAMPLE_PERIOD_Q31;
 
@@ -247,7 +248,8 @@ static void SineOutputTask(void *p_arg){
 
         }
         else{
-
+            OSSemPend(&(CtrlState.flag_sine),0 , OS_OPT_PEND_BLOCKING, (void *)0, &os_err);
+            mode = CtrlState.buffer;
         }
 
         DB1_TURN_ON();
@@ -277,13 +279,12 @@ static void SineOutputTask(void *p_arg){
 
         while(1){
 
-            freq = UIFreqGet();
-            vol = UILevGet();
+
             mode = UIStateGet();
 
-
-
             if(mode == PULSETRAIN_MODE){
+                freq = UIFreqGet();
+                vol = UILevGet();
 
                 if(freq <= LOWEST_THREHOLD_FREQ){
                     //System Clock, Centered Pulse, Prescaler

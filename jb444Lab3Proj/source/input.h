@@ -25,6 +25,8 @@ typedef struct{
 typedef struct{
     STATE buffer;
     OS_SEM flag;
+    OS_SEM flag_square;
+    OS_SEM flag_sine;
 }CTRL_STATE;
 
 extern KEY_BUFFER inKeyBuffer;
