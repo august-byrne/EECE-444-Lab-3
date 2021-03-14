@@ -52,12 +52,12 @@ static CPU_STK SquareOutputTaskStk[APP_CFG_SQUARE_GEN_STK_SIZE];
 #define NUM_BLOCKS        2
 #define BYTES_PER_SAMPLE  2
 #define SAMPLES_PER_BLOCK 1024
-#define BYTES_PER_BLOCK    (SAMPLES_PER_BLOCK*BYTES_PER_SAMPLE)
-#define BYTES_PER_BUFFER    (NUM_BLOCKS*BYTES_PER_BLOCK)
+#define BYTES_PER_BLOCK             (SAMPLES_PER_BLOCK*BYTES_PER_SAMPLE)
+#define BYTES_PER_BUFFER            (NUM_BLOCKS*BYTES_PER_BLOCK)
 #define DMA_OUT_CH        0
 #define SAMPLE_PERIOD_Q31 44739
 #define ABS_VAL_MASK       0x7FFFFFFF
-#define DC_OFFSET 2000  //1/2 VFSR + some tweeaking
+#define DC_OFFSET 2048
 
 typedef struct{
     INT8U index;
@@ -214,14 +214,15 @@ static void SineOutputTask(void *p_arg){
     INT16U freq;
     INT8U vol;
     STATE mode;
-    (void) p_arg;
 
+    (void) p_arg;
     while(1){
 
 
         freq = UIFreqGet();
         vol = UILevGet();
         mode = UIStateGet();
+
 
         DB1_TURN_OFF();
 
@@ -275,7 +276,6 @@ static void SineOutputTask(void *p_arg){
         (void) p_arg;
 
         while(1){
-
 
             freq = UIFreqGet();
             vol = UILevGet();

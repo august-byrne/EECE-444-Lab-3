@@ -193,7 +193,7 @@ void uiDispTask(void *p_arg){
                 freq_comps[key_index] = inKeyBuffer.buffer[key_index] - ASCII_SHIFT;
             }
             else{
-                //Do nothing
+                freq_comps[key_index] = 0;
             }
             key_index++;
         }
@@ -333,5 +333,3 @@ STATE UIStateGet(void){
     return State;
 
 }
-
-
