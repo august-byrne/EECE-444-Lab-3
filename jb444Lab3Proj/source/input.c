@@ -2,8 +2,11 @@
  * input.c
  *  This is all of the input for the function generator of EECE444 Lab 3
  *  Created on: Mar 3, 2021
- *  Lasted Edited On: Mar 14 2021
+ *  Last Edited On: 3/14/2021
  *      Author: August Byrne
+ *
+ *  Edited by Jacob Bindernagel
+ *  - Added semaphores to let the output tasks pend
  */
 #include "app_cfg.h"
 #include "os.h"
@@ -77,6 +80,8 @@ void inputInit(void){
 	KeyInit();
 
 	OSSemCreate(&(CtrlState.flag),"Key Press Buffer",0,&os_err);
+	OSSemCreate(&(CtrlState.flag_square),"Key Press Buffer",0,&os_err);
+	OSSemCreate(&(CtrlState.flag_sine),"Key Press Buffer",0,&os_err);
 	CtrlState.buffer = WAITING_MODE;
 	OSSemCreate(&(inKeyBuffer.flag),"Key Press Buffer",0,&os_err);
 	OSSemCreate(&(inKeyBuffer.enter),"Key Press Enter",0,&os_err);
@@ -133,6 +138,7 @@ static void inKeyTask(void *p_arg){
 			OSSemPost(&(inKeyBuffer.flag),OS_OPT_POST_NONE,&os_err);
 			CtrlState.buffer = SINEWAVE_MODE;
 			OSSemPost(&(CtrlState.flag),OS_OPT_POST_NONE,&os_err);
+			OSSemPost(&(CtrlState.flag_sine),OS_OPT_POST_NONE,&os_err);
 		break;
 		case DC2:		//'B' changes CtrlState semaphore to square wave mode
 			for (int i = 0; i < KEY_LEN; i++){
@@ -141,8 +147,9 @@ static void inKeyTask(void *p_arg){
 			OSSemPost(&(inKeyBuffer.flag),OS_OPT_POST_NONE,&os_err);
 			CtrlState.buffer = PULSETRAIN_MODE;
 			OSSemPost(&(CtrlState.flag),OS_OPT_POST_NONE,&os_err);
+			OSSemPost(&(CtrlState.flag_square),OS_OPT_POST_NONE,&os_err);
 		break;
-		case DC3:		//'C' changes CtrlState semaphore to square wave mode
+		case DC3:		//'C' changes CtrlState semaphore to idle mode
 			for (int i = 0; i < KEY_LEN; i++){
 				inKeyBuffer.buffer[i] = 0;
 			}

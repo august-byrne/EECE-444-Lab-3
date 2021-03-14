@@ -209,6 +209,7 @@ static void SineOutputTask(void *p_arg){
     INT16U sample_index = 0;
     INT16U buffer_index;
     q31_t xarg = 0;
+    q31_t xarg_inc;
     INT32U freq;
     INT32U vol;
     q31_t sine_value;
@@ -218,14 +219,18 @@ static void SineOutputTask(void *p_arg){
     while(1){
 
 
-        freq = UIFreqGet();
-        vol = UILevGet();
-        mode = UIStateGet();
 
+        mode = UIStateGet();
 
         DB1_TURN_OFF();
 
         if(mode == SINEWAVE_MODE){
+
+            freq = UIFreqGet();
+            vol = UILevGet();
+            buffer_index = DMAPend(0, &os_err);
+            xarg_inc = freq*SAMPLE_PERIOD_Q31;
+
         while (sample_index < SAMPLES_PER_BLOCK){
             sine_value = arm_sin_q31(xarg); //Computes sine wave value
             arm_mult_q31(&sine_value,&AC_FACTOR,&sine_value,1); //Multiplies by 1/20 of the volume (1.5/(3.3*20))
@@ -233,13 +238,20 @@ static void SineOutputTask(void *p_arg){
 
             DMABuffer[buffer_index][sample_index] = (INT16S)sine_value;
 
-            xarg = xarg + (freq*SAMPLE_PERIOD_Q31); //Increments counter
+            xarg = xarg + xarg_inc; //Increments counter
             xarg = xarg & ABS_VAL_MASK; //Masks sign bit for roll over
             sample_index++;
         }
         sample_index = 0;
         DB1_TURN_OFF();
         }
+
+        else{
+            OSSemPend(&(CtrlState.flag_sine),0 , OS_OPT_PEND_BLOCKING, (void *)0, &os_err);
+            mode = CtrlState.buffer;
+        }
+
+        DB1_TURN_ON();
     }
 
 }
@@ -266,14 +278,15 @@ static void SineOutputTask(void *p_arg){
 
         while(1){
 
-            freq = UIFreqGet();
-            vol = UILevGet();
+
             mode = UIStateGet();
 
 
             DB0_TURN_ON();
 
             if(mode == PULSETRAIN_MODE){
+                freq = UIFreqGet();
+                vol = UILevGet();
 
                 if(freq <= LOWEST_THREHOLD_FREQ){
                     //System Clock, Centered Pulse, Prescaler
@@ -313,7 +326,9 @@ static void SineOutputTask(void *p_arg){
                 DB0_TURN_OFF();
                 }
             else{
-                DB0_TURN_OFF();
+
+                OSSemPend(&(CtrlState.flag_square),0 , OS_OPT_PEND_BLOCKING, (void *)0, &os_err);
+                mode = CtrlState.buffer;
             }
             }
 
