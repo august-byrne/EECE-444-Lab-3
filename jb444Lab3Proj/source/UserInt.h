@@ -10,6 +10,7 @@
 
 #include "MCUType.h"
 #include "os.h"
+#include "input.h"
 
 void UIInit(void);
 INT16U UIFreqGet(void);

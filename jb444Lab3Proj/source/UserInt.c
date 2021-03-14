@@ -41,6 +41,9 @@ static STATE StateCntrl = WAITING_MODE;
 static INT8U Lev = 0;
 static INT16U Frequency = 0;
 
+static INT8U inLevel = 0;
+static STATE uiStateCntrl = WAITING_MODE;
+
 OS_MUTEX FrequencyKey;
 OS_MUTEX VolumeKey;
 OS_MUTEX StateKey;
@@ -117,6 +120,7 @@ void UIInit(void){
 
     OSMutexCreate(&FrequencyKey, "Frequency", &os_err);
     OSMutexCreate(&VolumeKey, "Volume", &os_err);
+    OSMutexCreate(&StateKey, "State", &os_err);
 
 }
 
@@ -131,7 +135,7 @@ void UIInit(void){
 
 void uiFreqTask(void *p_arg){
     OS_ERR os_err;
-    INT8U inKeyBufferFreq[KEY_LEN];
+    INT8U* inKeyBufferFreq;
 
     (void)p_arg;
 
@@ -167,7 +171,7 @@ void uiDispTask(void *p_arg){
     OS_ERR os_err;
     INT8U key_index = 0;
     INT8U freq_comps[MAX_DIGITS];
-    INT8U inKeyBuffer[KEY_LEN];
+    INT8U* inKeyBuffer;
 
     (void)p_arg;
 
@@ -182,7 +186,6 @@ void uiDispTask(void *p_arg){
             }
         }
         LcdDispString(LCD_ROW_1,LCD_COL_7,APP_LAYER_FREQ,"Hz");
-        OSMutexPend(&FrequencyKey, 0, OS_OPT_PEND_BLOCKING, (void *)0, &os_err);
         //Converts each char into it's true value
         while(key_index <= MAX_DIGITS){
             if(inKeyBuffer[key_index] != 0){
@@ -195,6 +198,7 @@ void uiDispTask(void *p_arg){
         }
         key_index = 0;
         //Sums the entire thing.
+        OSMutexPend(&FrequencyKey, 0, OS_OPT_PEND_BLOCKING, (void *)0, &os_err);
         Frequency = freq_comps[4]*10000 + freq_comps[3]*1000 + freq_comps[2]*100 + freq_comps[1]*10 + freq_comps[0];
         OSMutexPost(&FrequencyKey, OS_OPT_POST_NONE, &os_err);
         DB4_TURN_ON();
@@ -210,7 +214,6 @@ void uiDispTask(void *p_arg){
  *****************************************************************************/
 void uiVolTask(void *p_arg){
     OS_ERR os_err;
-    INT8U inLevel;
     (void)p_arg;
 
     while(1){
@@ -236,9 +239,9 @@ void uiVolTask(void *p_arg){
         OSMutexPend(&VolumeKey, 0, OS_OPT_PEND_BLOCKING, (void *)0, &os_err);
         Lev = inLevel;
         OSMutexPost(&VolumeKey, OS_OPT_POST_NONE, &os_err);
-        }
-        DB5_TURN_ON();
     }
+    DB5_TURN_ON();
+}
 
 /*******************************************************************************
 * StatePend Code
@@ -248,7 +251,6 @@ void uiVolTask(void *p_arg){
 *******************************************************************************/
 void uiStateTask(void *p_arg){
     OS_ERR os_err;
-    STATE uiStateCntrl;
 
     (void)p_arg;
 
@@ -257,16 +259,16 @@ void uiStateTask(void *p_arg){
         LcdDispClear(APP_LAYER_VOL);
         LcdDispClear(APP_LAYER_UNIT);
         if(uiStateCntrl == PULSETRAIN_MODE){
-            if((Lev <= 19) && (Lev >= 2)){
-                LcdDispDecWord(LCD_ROW_1,LCD_COL_14,APP_LAYER_VOL,DutyCycle[Lev],2,LCD_DEC_MODE_AR);
-            }else if(Lev <= 1){
-                LcdDispDecWord(LCD_ROW_1,LCD_COL_15,APP_LAYER_VOL,DutyCycle[Lev],1,LCD_DEC_MODE_AR);
+            if((inLevel <= 19) && (inLevel >= 2)){
+                LcdDispDecWord(LCD_ROW_1,LCD_COL_14,APP_LAYER_VOL,DutyCycle[inLevel],2,LCD_DEC_MODE_AR);
+            }else if(inLevel <= 1){
+                LcdDispDecWord(LCD_ROW_1,LCD_COL_15,APP_LAYER_VOL,DutyCycle[inLevel],1,LCD_DEC_MODE_AR);
             }else{
-                LcdDispDecWord(LCD_ROW_1,LCD_COL_13,APP_LAYER_VOL,DutyCycle[Lev],3,LCD_DEC_MODE_AR);
+                LcdDispDecWord(LCD_ROW_1,LCD_COL_13,APP_LAYER_VOL,DutyCycle[inLevel],3,LCD_DEC_MODE_AR);
             }
             LcdDispString(LCD_ROW_1,LCD_COL_16,APP_LAYER_UNIT,"%");
         }else if(uiStateCntrl == SINEWAVE_MODE){
-            LcdDispDecWord(LCD_ROW_1, LCD_COL_15,APP_LAYER_VOL,Lev,2,LCD_DEC_MODE_AR);
+            LcdDispDecWord(LCD_ROW_1, LCD_COL_15,APP_LAYER_VOL,inLevel,2,LCD_DEC_MODE_AR);
             LcdDispString(LCD_ROW_1,LCD_COL_16,APP_LAYER_UNIT," ");
         }else{
             // do nothing
