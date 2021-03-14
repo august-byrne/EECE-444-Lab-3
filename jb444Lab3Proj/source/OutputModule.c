@@ -3,6 +3,10 @@
 * 10 to 10k Hz. It will be taking taking in the volume, which controls the volume of the
 * Sine wave and the duty cycle of the square wave
 *
+*
+* BUGS:
+* -Currently one only one task dominates the other, depending on how the prio is set
+*
 * Jacob Bindernagel
 * 3/11/2021
 *****************************************************************************************/
@@ -47,13 +51,13 @@ static CPU_STK SquareOutputTaskStk[APP_CFG_SQUARE_GEN_STK_SIZE];
 #define SIZE_CODE_16BIT   0x1
 #define NUM_BLOCKS        2
 #define BYTES_PER_SAMPLE  2
-#define SAMPLES_PER_BLOCK 100
+#define SAMPLES_PER_BLOCK 1024
 #define BYTES_PER_BLOCK             (SAMPLES_PER_BLOCK*BYTES_PER_SAMPLE)
 #define BYTES_PER_BUFFER            (NUM_BLOCKS*BYTES_PER_BLOCK)
 #define DMA_OUT_CH        0
 #define SAMPLE_PERIOD_Q31 44739
 #define ABS_VAL_MASK       0x7FFFFFFF
-#define DC_OFFSET 2047
+#define DC_OFFSET 2000
 
 typedef struct{
     INT8U index;
@@ -65,7 +69,9 @@ typedef struct{
  ******************************************************************************************/
  DMA_BLOCK_RDY dmaInBlockRdy;
  static INT16S DMABuffer[NUM_BLOCKS][SAMPLES_PER_BLOCK];
-
+ static INT16U Freq;
+ static INT8U  Vol;
+ static STATE Mode;
 
 /*****************************************************************************************
 * Task Function Prototypes.
@@ -185,9 +191,6 @@ void OutputInit(void){
                      OS_OPT_TASK_NONE,
                      &os_err);
 
-
-
-
 }
 
 
@@ -209,33 +212,46 @@ static void SineOutputTask(void *p_arg){
     INT16U sample_index = 0;
     INT16U buffer_index;
     q31_t xarg = 0;
-    INT32U freq;
-    INT32U vol;
+    q31_t xarg_inc;
     q31_t sine_value;
-    STATE mode;
 
     (void) p_arg;
     while(1){
 
 
-        buffer_index = DMAPend(0, &os_err);
-        DB1_TURN_ON();
+        Freq = UIFreqGet();
+        Vol = UILevGet();
+        Mode = UIStateGet();
 
-        if(mode == SINEWAVE_MODE){
+
+        DB1_TURN_OFF();
+
+        if(Mode == SINEWAVE_MODE){
+
+            buffer_index = DMAPend(0, &os_err);
+            xarg_inc = Freq*SAMPLE_PERIOD_Q31;
+
         while (sample_index < SAMPLES_PER_BLOCK){
+
             sine_value = arm_sin_q31(xarg); //Computes sine wave value
             arm_mult_q31(&sine_value,&AC_FACTOR,&sine_value,1); //Multiplies by 1/20 of the volume (1.5/(3.3*20))
-            sine_value = ((sine_value*vol) >> 20) + DC_OFFSET; //applies volume level, shifts to 12 bits, and applies DC offset
+            sine_value = ((sine_value*Vol) >> 20) + DC_OFFSET; //applies volume level, shifts to 12 bits, and applies DC offset
 
             DMABuffer[buffer_index][sample_index] = (INT16S)sine_value;
 
-            xarg = xarg + (freq*SAMPLE_PERIOD_Q31); //Increments counter
+            xarg = xarg + xarg_inc;
             xarg = xarg & ABS_VAL_MASK; //Masks sign bit for roll over
             sample_index++;
         }
         sample_index = 0;
-        DB1_TURN_OFF();
+
         }
+        else{
+
+        }
+
+        DB1_TURN_ON();
+
     }
 
 }
@@ -252,23 +268,21 @@ static void SineOutputTask(void *p_arg){
 
     static void  SquareOutputTask(void *p_arg){
 
-        OS_ERR os_err;
-        INT16U freq;
         INT16U mod;
         INT32U duty;
-        INT8U vol;
-        STATE mode;
         (void) p_arg;
 
         while(1){
 
+            Freq = UIFreqGet();
+            Vol = UILevGet();
+            Mode = UIStateGet();
 
 
-            DB0_TURN_ON();
 
-            if(mode == PULSETRAIN_MODE){
+            if(Mode == PULSETRAIN_MODE){
 
-                if(freq <= LOWEST_THREHOLD_FREQ){
+                if(Freq <= LOWEST_THREHOLD_FREQ){
                     //System Clock, Centered Pulse, Prescaler
                     FTM3->SC = FTM_SC_CLKS(1)|FTM_SC_CPWMS(1)|FTM_SC_PS(LOW_FREQ_PRESCALAR);
 
@@ -276,37 +290,36 @@ static void SineOutputTask(void *p_arg){
                     FTM3->CONTROLS[3].CnSC = FTM_CnSC_ELSA(0)|FTM_CnSC_ELSB(1);
 
                     //Calculates wanted mod (Tp = Tsys*2*mod)
-                    mod = TWICE_SCALED_CLK_FREQ/(freq*2);
+                    mod = TWICE_SCALED_CLK_FREQ/(Freq*2);
 
                     //Sticks value in FTM's mod register
                     FTM3->MOD = FTM_MOD_MOD(mod);
                 }
 
 
-                else if((freq > LOWEST_THREHOLD_FREQ) && (freq <= UPPER_THRESHOLD_FREQ)){
+                else if((Freq > LOWEST_THREHOLD_FREQ) && (Freq <= UPPER_THRESHOLD_FREQ)){
                     FTM3->SC = FTM_SC_CLKS(1)|FTM_SC_CPWMS(1)|FTM_SC_PS(MID_FREQ_PRESCALAR);
                     FTM3->CONTROLS[3].CnSC = FTM_CnSC_ELSA(0)|FTM_CnSC_ELSB(1);
-                    mod = SCALED_CLK_FREQ/(freq*2);
+                    mod = SCALED_CLK_FREQ/(Freq*2);
                     FTM3->MOD = FTM_MOD_MOD(mod);
                 }
 
                 else{
                     FTM3->SC = FTM_SC_CLKS(1)|FTM_SC_CPWMS(1)|FTM_SC_PS(HIGH_FREQ_PRESCALER);
                     FTM3->CONTROLS[3].CnSC = FTM_CnSC_ELSA(0)|FTM_CnSC_ELSB(1);
-                    mod = UNSCALED_CLK_FREQ/(freq*2);
+                    mod = UNSCALED_CLK_FREQ/(Freq*2);
                     FTM3->MOD = FTM_MOD_MOD(mod);
 
                 }
 
                 //Computes duty cycle based on volume and inputs
-                duty = ((INT32U)mod * (INT32U)vol) / MAX_VOL;
+                duty = ((INT32U)mod * (INT32U)Vol) / MAX_VOL;
                 //Set signal pulse width (duty cycle)
                 FTM3->CONTROLS[3].CnV = FTM_CnV_VAL((INT16U)duty);
 
-                DB0_TURN_OFF();
                 }
             else{
-                DB0_TURN_OFF();
+
             }
             }
 
@@ -320,11 +333,9 @@ static void SineOutputTask(void *p_arg){
 void DMA0_DMA16_IRQHandler(void){
     OS_ERR os_err;
     OSIntEnter();
-    DB1_TURN_ON();
     DMA0->CINT = DMA_CINT_CINT(DMA_OUT_CH);
     dmaInBlockRdy.index ^= 1;                            //toggle buffer index
     OSSemPost(&(dmaInBlockRdy.flag),OS_OPT_POST_1,&os_err);
-    DB1_TURN_OFF();
     OSIntExit();
 }
 

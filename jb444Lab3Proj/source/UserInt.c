@@ -4,16 +4,19 @@
 *
 * Rachel Givens 03/04/2020
 *******************************************************************************/
-#include "UserInt.h"
-#include "MCUType.h"
-#include "os.h"
 #include "app_cfg.h"
-#include "K65TWR_GPIO.h"
+#include "UserInt.h"
+#include "os.h"
+#include "MCUType.h"
 #include "K65TWR_ClkCfg.h"
+#include "K65TWR_GPIO.h"
 #include "MemTest.h"
 #include "LcdLayered.h"
 #include "uCOSKey.h"
 #include "input.h"
+
+#define ASCII_SHIFT 48
+#define MAX_DIGITS 5
 
 static OS_TCB uiFreqTaskTCB;
 static OS_TCB uiDispTaskTCB;
@@ -30,11 +33,17 @@ static void uiDispTask(void *p_arg);
 static void uiVolTask(void *p_arg);
 static void uiStateTask(void *p_arg);
 
+INT16U UIFreqGet(void);
+INT8U UILevGet(void);
+
 static STATE uiStateCntrl = WAITING_MODE;
 
-static INT8U lev = 0;
+static INT8U Lev = 0;
+static INT16U Frequency = 0;
 
 OS_MUTEX FrequencyKey;
+OS_MUTEX VolumeKey;
+OS_MUTEX StateKey;
 
 static const INT8U DutyCycle[21] = {0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100};
 
@@ -107,6 +116,7 @@ void UIInit(void){
                  &os_err);
 
     OSMutexCreate(&FrequencyKey, "Frequency", &os_err);
+    OSMutexCreate(&VolumeKey, "Volume", &os_err);
 
 }
 
@@ -148,11 +158,17 @@ void uiFreqTask(void *p_arg){
  * Writes Current Frequency to the left side top row of in Hz
  * Pends on KeyTask's #
  * Rachel Givens, 03/05/2021
+ *
+ * Edited by Jacob Bindernagel on 3/13/2021
+ * Converts ASCII to decimal value.
+ *
  *****************************************************************************/
 
 void uiDispTask(void *p_arg){
     OS_ERR os_err;
-    INT16U frequency;
+
+    INT8U key_index = 0;
+    INT8U freq_comps[MAX_DIGITS];
 
     (void)p_arg;
 
@@ -170,7 +186,21 @@ void uiDispTask(void *p_arg){
         LcdDispString(LCD_ROW_1,LCD_COL_7,APP_LAYER_FREQ,"Hz");
 
         OSMutexPend(&FrequencyKey, 0, OS_OPT_PEND_BLOCKING, (void *)0, &os_err);
-        frequency = inKeyBuffer.buffer[4]*10000 + inKeyBuffer.buffer[3]*1000 + inKeyBuffer.buffer[2]*100 + inKeyBuffer.buffer[1]*10 + inKeyBuffer.buffer[0];
+
+        //Converts each char into it's true value
+        while(key_index <= MAX_DIGITS){
+            if(inKeyBuffer.buffer[key_index] != 0){
+                freq_comps[key_index] = inKeyBuffer.buffer[key_index] - ASCII_SHIFT;
+            }
+            else{
+                //Do nothing
+            }
+            key_index++;
+        }
+        key_index = 0;
+
+        //Sums the entire thing.
+        Frequency = freq_comps[4]*10000 + freq_comps[3]*1000 + freq_comps[2]*100 + freq_comps[1]*10 + freq_comps[0];
         OSMutexPost(&FrequencyKey, OS_OPT_POST_NONE, &os_err);
 
         DB4_TURN_ON();
@@ -195,25 +225,29 @@ void uiVolTask(void *p_arg){
         DB5_TURN_OFF();
 
         OSSemPend(&(inLevBuffer.flag), 0, OS_OPT_PEND_BLOCKING, (void *)0, &os_err);
-        lev = inLevBuffer.buffer;
+        Lev = inLevBuffer.buffer;
 
         LcdDispClear(APP_LAYER_VOL);
         switch(uiStateCntrl){
         case SINEWAVE_MODE:
-            LcdDispDecWord(LCD_ROW_1, LCD_COL_15,APP_LAYER_VOL,lev,2,LCD_DEC_MODE_AR);
+            LcdDispDecWord(LCD_ROW_1, LCD_COL_15,APP_LAYER_VOL,Lev,2,LCD_DEC_MODE_AR);
         break;
         case PULSETRAIN_MODE:
-            if((lev <= 19) && (lev >= 2)){
-                LcdDispDecWord(LCD_ROW_1,LCD_COL_14,APP_LAYER_VOL,DutyCycle[lev],2,LCD_DEC_MODE_AR);
-            }else if(lev <= 1){
-                LcdDispDecWord(LCD_ROW_1,LCD_COL_15,APP_LAYER_VOL,DutyCycle[lev],1,LCD_DEC_MODE_AR);
+            if((Lev <= 19) && (Lev >= 2)){
+                LcdDispDecWord(LCD_ROW_1,LCD_COL_14,APP_LAYER_VOL,DutyCycle[Lev],2,LCD_DEC_MODE_AR);
+            }else if(Lev <= 1){
+                LcdDispDecWord(LCD_ROW_1,LCD_COL_15,APP_LAYER_VOL,DutyCycle[Lev],1,LCD_DEC_MODE_AR);
             }else{
-                LcdDispDecWord(LCD_ROW_1,LCD_COL_13,APP_LAYER_VOL,DutyCycle[lev],3,LCD_DEC_MODE_AR);
+                LcdDispDecWord(LCD_ROW_1,LCD_COL_13,APP_LAYER_VOL,DutyCycle[Lev],3,LCD_DEC_MODE_AR);
             }
             break;
         default:
         break;
         }
+
+        OSMutexPend(&VolumeKey, 0, OS_OPT_PEND_BLOCKING, (void *)0, &os_err);
+        Lev = inLevBuffer.buffer;
+        OSMutexPost(&VolumeKey, OS_OPT_POST_NONE, &os_err);
 
         }
 
@@ -241,20 +275,63 @@ void uiStateTask(void *p_arg){
         LcdDispClear(APP_LAYER_VOL);
         LcdDispClear(APP_LAYER_UNIT);
         if(uiStateCntrl == PULSETRAIN_MODE){
-            if((lev <= 19) && (lev >= 2)){
-                LcdDispDecWord(LCD_ROW_1,LCD_COL_14,APP_LAYER_VOL,DutyCycle[lev],2,LCD_DEC_MODE_AR);
-            }else if(lev <= 1){
-                LcdDispDecWord(LCD_ROW_1,LCD_COL_15,APP_LAYER_VOL,DutyCycle[lev],1,LCD_DEC_MODE_AR);
+            if((Lev <= 19) && (Lev >= 2)){
+                LcdDispDecWord(LCD_ROW_1,LCD_COL_14,APP_LAYER_VOL,DutyCycle[Lev],2,LCD_DEC_MODE_AR);
+            }else if(Lev <= 1){
+                LcdDispDecWord(LCD_ROW_1,LCD_COL_15,APP_LAYER_VOL,DutyCycle[Lev],1,LCD_DEC_MODE_AR);
             }else{
-                LcdDispDecWord(LCD_ROW_1,LCD_COL_13,APP_LAYER_VOL,DutyCycle[lev],3,LCD_DEC_MODE_AR);
+                LcdDispDecWord(LCD_ROW_1,LCD_COL_13,APP_LAYER_VOL,DutyCycle[Lev],3,LCD_DEC_MODE_AR);
             }
             LcdDispString(LCD_ROW_1,LCD_COL_16,APP_LAYER_UNIT,"%");
         }else if(uiStateCntrl == SINEWAVE_MODE){
-            LcdDispDecWord(LCD_ROW_1, LCD_COL_15,APP_LAYER_VOL,lev,2,LCD_DEC_MODE_AR);
+            LcdDispDecWord(LCD_ROW_1, LCD_COL_15,APP_LAYER_VOL,Lev,2,LCD_DEC_MODE_AR);
             LcdDispString(LCD_ROW_1,LCD_COL_16,APP_LAYER_UNIT," ");
         }else{
             // do nothing
         }
+
+        OSMutexPend(&StateKey, 0, OS_OPT_PEND_BLOCKING, (void *)0, &os_err);
+        uiStateCntrl = CtrlState.buffer;
+        OSMutexPost(&StateKey, OS_OPT_POST_NONE, &os_err);
+
     }
 
 }
+
+INT16U UIFreqGet(void){
+    INT16U Freq;
+    OS_ERR os_err;
+
+    OSMutexPend(&FrequencyKey, 0, OS_OPT_PEND_BLOCKING, (void *)0, &os_err);
+    Freq = Frequency;
+    OSMutexPost(&FrequencyKey, OS_OPT_POST_NONE, &os_err);
+
+    return Freq;
+
+}
+
+INT8U UILevGet(void){
+    INT8U Level;
+    OS_ERR os_err;
+
+    OSMutexPend(&VolumeKey, 0, OS_OPT_PEND_BLOCKING, (void *)0, &os_err);
+    Level = Lev;
+    OSMutexPost(&VolumeKey, OS_OPT_POST_NONE, &os_err);
+
+    return Level;
+
+}
+
+STATE UIStateGet(void){
+    STATE State;
+    OS_ERR os_err;
+
+    OSMutexPend(&StateKey, 0, OS_OPT_PEND_BLOCKING, (void *)0, &os_err);
+    State = uiStateCntrl;
+    OSMutexPost(&StateKey, OS_OPT_POST_NONE, &os_err);
+
+    return State;
+
+}
+
+
