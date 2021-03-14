@@ -47,13 +47,13 @@ static CPU_STK SquareOutputTaskStk[APP_CFG_SQUARE_GEN_STK_SIZE];
 #define SIZE_CODE_16BIT   0x1
 #define NUM_BLOCKS        2
 #define BYTES_PER_SAMPLE  2
-#define SAMPLES_PER_BLOCK 100
+#define SAMPLES_PER_BLOCK 1024
 #define BYTES_PER_BLOCK             (SAMPLES_PER_BLOCK*BYTES_PER_SAMPLE)
 #define BYTES_PER_BUFFER            (NUM_BLOCKS*BYTES_PER_BLOCK)
 #define DMA_OUT_CH        0
 #define SAMPLE_PERIOD_Q31 44739
 #define ABS_VAL_MASK       0x7FFFFFFF
-#define DC_OFFSET 2047
+#define DC_OFFSET 2048
 
 typedef struct{
     INT8U index;
@@ -218,8 +218,12 @@ static void SineOutputTask(void *p_arg){
     while(1){
 
 
-        buffer_index = DMAPend(0, &os_err);
-        DB1_TURN_ON();
+        freq = UIFreqGet();
+        vol = UILevGet();
+        mode = UIStateGet();
+
+
+        DB1_TURN_OFF();
 
         if(mode == SINEWAVE_MODE){
         while (sample_index < SAMPLES_PER_BLOCK){
@@ -262,6 +266,9 @@ static void SineOutputTask(void *p_arg){
 
         while(1){
 
+            freq = UIFreqGet();
+            vol = UILevGet();
+            mode = UIStateGet();
 
 
             DB0_TURN_ON();
