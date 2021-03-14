@@ -247,8 +247,7 @@ static void SineOutputTask(void *p_arg){
         }
 
         else{
-            OSSemPend(&(CtrlState.flag_sine),0 , OS_OPT_PEND_BLOCKING, (void *)0, &os_err);
-            mode = CtrlState.buffer;
+            mode = SinePend(0, &os_err);
         }
 
         DB1_TURN_ON();
@@ -327,8 +326,8 @@ static void SineOutputTask(void *p_arg){
                 }
             else{
 
-                OSSemPend(&(CtrlState.flag_square),0 , OS_OPT_PEND_BLOCKING, (void *)0, &os_err);
-                mode = CtrlState.buffer;
+                mode = SqaurePend(0, &os_err);
+
             }
             }
 
