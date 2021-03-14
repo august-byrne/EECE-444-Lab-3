@@ -224,3 +224,4 @@ STATE getInStatePend(INT16U tout, OS_ERR *os_err){
 	OSSemPend(&(CtrlState.flag),tout, OS_OPT_PEND_BLOCKING, (CPU_TS *)0, os_err);
 	return CtrlState.buffer;
 }
+

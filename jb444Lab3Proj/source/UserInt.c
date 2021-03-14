@@ -304,3 +304,4 @@ STATE UIStateGet(void){
     OSMutexPost(&StateKey, OS_OPT_POST_NONE, &os_err);
     return State;
 }
+
