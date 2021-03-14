@@ -22,21 +22,24 @@
 *****************************************************************************************/
 #define ASCII_0 48
 
-typedef struct {
-	INT8U buffer[KEY_LEN];
-	OS_SEM flag;
-	OS_SEM enter;
-} KEY_BUFFER;
-
 typedef struct{
-    INT8U buffer;
+    INT8U buffers;
     OS_SEM flag;
 }TSI_BUFFER;
+
+typedef struct {
+    INT8U buffer[KEY_LEN];
+    OS_SEM flag;
+    OS_SEM enter;
+} KEY_BUFFER;
 
 typedef struct{
     STATE buffer;
     OS_SEM flag;
+    OS_SEM flag_square;
+    OS_SEM flag_sine;
 }CTRL_STATE;
+
 
 /*****************************************************************************************
 * Allocate task control blocks
@@ -89,7 +92,7 @@ void inputInit(void){
 		inKeyBuffer.buffer[i] = 0;
 	}
 	OSSemCreate(&(inLevBuffer.flag),"Touch Sensor Buffer",0,&os_err);
-	inLevBuffer.buffer = 0;
+	inLevBuffer.buffers = 0;
 
 	OSTaskCreate(&InKeyTaskTCB,                  /* Create Key Task                    */
 				"InKeyTask ",
@@ -202,13 +205,13 @@ static void inLevelTask(void *p_arg){
 		//handles all TSI scanning
 		tsense = TSIPend(0, &os_err);
 		if ((tsense & (1<<BRD_PAD2_CH)) != 0){
-			if (inLevBuffer.buffer > 0){
-				inLevBuffer.buffer--;
+			if (inLevBuffer.buffers > 0){
+				inLevBuffer.buffers--;
 				OSSemPost(&(inLevBuffer.flag),OS_OPT_POST_NONE,&os_err);
 			}else{}
 		}else if ((tsense & (1<<BRD_PAD1_CH)) != 0){
-			if (inLevBuffer.buffer < 20){
-				inLevBuffer.buffer++;
+			if (inLevBuffer.buffers < 20){
+				inLevBuffer.buffers++;
 				OSSemPost(&(inLevBuffer.flag),OS_OPT_POST_NONE,&os_err);
 			}else{}
 		}else{}
@@ -225,10 +228,18 @@ INT8U* getInKeyPend(INT8U pendMode, INT16U tout, OS_ERR *os_err){
 }
 INT8U getInLevPend(INT16U tout, OS_ERR *os_err){
 	OSSemPend(&(inLevBuffer.flag),tout, OS_OPT_PEND_BLOCKING, (CPU_TS *)0, os_err);
-	return inLevBuffer.buffer;
+	return inLevBuffer.buffers;
 }
 STATE getInStatePend(INT16U tout, OS_ERR *os_err){
 	OSSemPend(&(CtrlState.flag),tout, OS_OPT_PEND_BLOCKING, (CPU_TS *)0, os_err);
 	return CtrlState.buffer;
 }
 
+STATE SinePend(INT16U tout, OS_ERR *os_err){
+    OSSemPend(&(CtrlState.flag_sine),tout, OS_OPT_PEND_BLOCKING, (CPU_TS *)0, os_err);
+    return CtrlState.buffer;
+}
+STATE SqaurePend(INT16U tout, OS_ERR *os_err){
+    OSSemPend(&(CtrlState.flag_square),tout, OS_OPT_PEND_BLOCKING, (CPU_TS *)0, os_err);
+    return CtrlState.buffer;
+}
