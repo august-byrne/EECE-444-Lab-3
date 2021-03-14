@@ -34,5 +34,8 @@ extern TSI_BUFFER inLevBuffer;
 extern CTRL_STATE CtrlState;
 
 void inputInit(void);
+INT8U* getInKeyPend(INT8U pendMode, INT16U tout, OS_ERR *os_err);
+INT8U getInLevPend(INT16U tout, OS_ERR *os_err);
+STATE getInStatePend(INT16U tout, OS_ERR *os_err);
 
 #endif /* INPUT_H_ */

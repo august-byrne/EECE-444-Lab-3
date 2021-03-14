@@ -90,7 +90,6 @@ static void AppStartTask(void *p_arg) {
 //    OSStatTaskCPUUsageInit(&os_err);
 
 	GpioDBugBitsInit();
-	LcdInit();
 	inputInit();
 	UIInit();
 	OutputInit();
@@ -100,8 +99,6 @@ static void AppStartTask(void *p_arg) {
 	LcdDispString(LCD_ROW_2,LCD_COL_1,APP_LAYER_CHKSUM,"CS: ");
 	LcdDispByte(LCD_ROW_2,LCD_COL_4,APP_LAYER_CHKSUM,(INT8U)math_val);
 	LcdDispByte(LCD_ROW_2,LCD_COL_6,APP_LAYER_CHKSUM,(INT8U)(math_val << 8));	//display first byte then <<8 and display next byte
-
-
 
 	OSTaskDel((OS_TCB *)0, &os_err);
 
