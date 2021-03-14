@@ -12,9 +12,6 @@
 #include "os.h"
 #include "input.h"
 
-extern OS_MUTEX FrequencyKey;
-extern OS_MUTEX VolumeKey;
-
 void UIInit(void);
 INT16U UIFreqGet(void);
 INT8U UILevGet(void);
