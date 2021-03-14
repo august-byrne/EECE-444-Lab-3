@@ -22,6 +22,7 @@
 #include "LcdLayered.h"
 #include "input.h"
 #include "UserInt.h"
+#include "OutputModule.h"
 
 #define LOWADDR (INT32U) 0x00000000			//low memory address
 #define HIGHADRR (INT32U) 0x001FFFFF		//high memory address
@@ -92,6 +93,7 @@ static void AppStartTask(void *p_arg) {
 	LcdInit();
 	inputInit();
 	UIInit();
+	OutputInit();
 
 	//Initial program checksum, which is displayed on the second row of the LCD
 	INT8U math_val = CalcChkSum((INT8U *)LOWADDR,(INT8U *)HIGHADRR);
