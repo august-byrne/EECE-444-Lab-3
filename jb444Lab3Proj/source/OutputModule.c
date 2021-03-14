@@ -193,7 +193,7 @@ void OutputInit(void){
 
 
 /******************************************************************************
- * Calculates a data table and shoves it through the DMA to the DAC. Uses the DSP
+ * Calcuates a data table and shoves it through the DMA to the DAC. Uses the DSP
  * CMSIS module to calculate the sine wave, and uses a ping pong buffer to
  * communicate with the DAC.
  *
