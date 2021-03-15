@@ -54,6 +54,7 @@ static CPU_STK SquareOutputTaskStk[APP_CFG_SQUARE_GEN_STK_SIZE];
 #define SAMPLE_PERIOD_Q31 44739
 #define ABS_VAL_MASK       0x7FFFFFFF
 #define DC_OFFSET 2048
+static const q31_t AC_FACTOR = 0x5D1745D; // AC_FACTOR = 1.5/(20*3.3) = 1/44 in q31
 
 typedef struct{
     INT8U index;
@@ -204,7 +205,7 @@ void OutputInit(void){
 static void SineOutputTask(void *p_arg){
 
     (void)p_arg;
-    const q31_t AC_FACTOR = 0x5D1745D; // AC_FACTOR = 1.5/(20*3.3) = 1/44 in q31
+
     OS_ERR os_err;
     INT16U sample_index = 0;
     INT16U buffer_index;
