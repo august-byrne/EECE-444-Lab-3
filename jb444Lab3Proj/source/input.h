@@ -16,7 +16,7 @@ void inputInit(void);
 INT8U* getInKeyPend(INT8U pendMode, INT16U tout, OS_ERR *os_err);
 INT8U getInLevPend(INT16U tout, OS_ERR *os_err);
 STATE getInStatePend(INT16U tout, OS_ERR *os_err);
-STATE SquarePend(INT16U tout, OS_ERR *os_err);
+STATE SqaurePend(INT16U tout, OS_ERR *os_err);
 STATE SinePend(INT16U tout, OS_ERR *os_err);
 
 #endif /* INPUT_H_ */
