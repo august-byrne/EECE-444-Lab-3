@@ -1,8 +1,9 @@
 /*******************************************************************************
 * UserInt.c -
-* Contains UIInit()
+* Receives Inputs and Displays on the LCD then forwards values to Output module
+* via Mutexes
 *
-* Rachel Givens 03/04/2020
+* Rachel Givens 03/14/2020
 *******************************************************************************/
 #include "app_cfg.h"
 #include "UserInt.h"
@@ -54,7 +55,7 @@ static const INT8U DutyCycle[21] = {0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55
 * UIInit Code
 *
 *
-* Rachel Givens 03/05/2021
+* Rachel Givens 03/14/2021
 *******************************************************************************/
 void UIInit(void){
 
@@ -130,7 +131,7 @@ void UIInit(void){
  * Writes the Current Entry into the LCD
  * Pends on KeyTask
  *
- * Rachel Givens, 03/05/2021
+ * Rachel Givens, 03/14/2021
  *****************************************************************************/
 
 void uiFreqTask(void *p_arg){
@@ -210,7 +211,7 @@ void uiDispTask(void *p_arg){
  *
  * Writes Volume to the LCD, top row right side
  * Pends on inLev Task
- * Rachel Givens, 03/05/2021
+ * Rachel Givens, 03/14/2021
  *****************************************************************************/
 void uiVolTask(void *p_arg){
     OS_ERR os_err;
@@ -244,10 +245,10 @@ void uiVolTask(void *p_arg){
 }
 
 /*******************************************************************************
-* StatePend Code
+* uiStateTask
+* Pends on the state to display the correct unit of Duty Cycle/Volume
 *
-*
-* Rachel Givens 03/05/2021
+* Rachel Givens 03/14/2021
 *******************************************************************************/
 void uiStateTask(void *p_arg){
     OS_ERR os_err;
@@ -280,6 +281,12 @@ void uiStateTask(void *p_arg){
 
 }
 
+/*******************************************************************************
+* UIFreqGet Code
+* Public function for Output module to receive the entered frequency
+*
+* Rachel Givens 03/14/2021
+*******************************************************************************/
 INT16U UIFreqGet(void){
     INT16U Freq;
     OS_ERR os_err;
@@ -289,6 +296,12 @@ INT16U UIFreqGet(void){
     return Freq;
 }
 
+/*******************************************************************************
+* UILevGet Code
+* Public function for Output module to receive the duty cycle/volume
+*
+* Rachel Givens 03/05/2021
+*******************************************************************************/
 INT8U UILevGet(void){
     INT8U Level;
     OS_ERR os_err;
@@ -298,6 +311,12 @@ INT8U UILevGet(void){
     return Level;
 }
 
+/*******************************************************************************
+* UIStateGet Code
+* Public function for Output module to receive the mode (sinewave/pulsetrain)
+*
+* Rachel Givens 03/05/2021
+*******************************************************************************/
 STATE UIStateGet(void){
     STATE State;
     OS_ERR os_err;
