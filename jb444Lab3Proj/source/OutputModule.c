@@ -67,7 +67,6 @@ typedef struct{
  DMA_BLOCK_RDY dmaInBlockRdy;
  static INT16S DMABuffer[NUM_BLOCKS][SAMPLES_PER_BLOCK];
 
-
 /*****************************************************************************************
 * Task Function Prototypes.
 *   - Private if in the same module as startup task. Otherwise public.
@@ -77,8 +76,8 @@ static void SineOutputTask(void *p_arg);
 static INT8U DMAPend(OS_TICK tout, OS_ERR *os_err_ptr);
 void DMA0_DMA16_IRQHandler(void);
 
-void OutputInit(void){
 
+void OutputInit(void){
 
     OS_ERR os_err;
 
@@ -194,7 +193,7 @@ void OutputInit(void){
 
 
 /******************************************************************************
- * Calcuates a data table and shoves it through the DMA to the DAC. Uses the DSP
+ * Calculates a data table and shoves it through the DMA to the DAC. Uses the DSP
  * CMSIS module to calculate the sine wave, and uses a ping pong buffer to
  * communicate with the DAC.
  *
@@ -203,56 +202,53 @@ void OutputInit(void){
  * Outputs: None
  ******************************************************************************/
 static void SineOutputTask(void *p_arg){
+	(void)p_arg;
+	const q31_t AC_FACTOR = 0x5D1745D; // AC_FACTOR = 1.5/(20*3.3) = 1/44 in q31
+	OS_ERR os_err;
+	INT16U sample_index = 0;
+	INT16U buffer_index;
+	q31_t xarg = 0;
+	q31_t xarg_inc;
+	INT32U freq;
+	INT32U vol;
+	q31_t sine_value;
+	STATE mode;
 
-    (void)p_arg;
+	(void) p_arg;
+	while(1){
 
-    OS_ERR os_err;
-    INT16U sample_index = 0;
-    INT16U buffer_index;
-    q31_t xarg = 0;
-    q31_t xarg_inc;
-    INT32U freq;
-    INT32U vol;
-    q31_t sine_value;
-    STATE mode;
+		mode = UIStateGet();
 
-    (void) p_arg;
-    while(1){
+		DB1_TURN_OFF();
 
+		if(mode == SINEWAVE_MODE){
 
+			freq = UIFreqGet();
+			vol = UILevGet();
+			buffer_index = DMAPend(0, &os_err);
+			xarg_inc = freq*SAMPLE_PERIOD_Q31;
 
-        mode = UIStateGet();
+		while (sample_index < SAMPLES_PER_BLOCK){
+			sine_value = arm_sin_q31(xarg); //Computes sine wave value
+			arm_mult_q31(&sine_value,&AC_FACTOR,&sine_value,1); //Multiplies by 1/20 of the volume (1.5/(3.3*20))
+			sine_value = ((sine_value*vol) >> 20) + DC_OFFSET; //applies volume level, shifts to 12 bits, and applies DC offset
 
-        DB1_TURN_OFF();
+			DMABuffer[buffer_index][sample_index] = (INT16S)sine_value;
 
-        if(mode == SINEWAVE_MODE){
+			xarg = xarg + xarg_inc; //Increments counter
+			xarg = xarg & ABS_VAL_MASK; //Masks sign bit for roll over
+			sample_index++;
+		}
+		sample_index = 0;
+		DB1_TURN_OFF();
+		}
 
-            freq = UIFreqGet();
-            vol = UILevGet();
-            buffer_index = DMAPend(0, &os_err);
-            xarg_inc = freq*SAMPLE_PERIOD_Q31;
+		else{
+			mode = SinePend(0, &os_err);
+		}
 
-        while (sample_index < SAMPLES_PER_BLOCK){
-            sine_value = arm_sin_q31(xarg); //Computes sine wave value
-            arm_mult_q31(&sine_value,&AC_FACTOR,&sine_value,1); //Multiplies by 1/20 of the volume (1.5/(3.3*20))
-            sine_value = ((sine_value*vol) >> 20) + DC_OFFSET; //applies volume level, shifts to 12 bits, and applies DC offset
-
-            DMABuffer[buffer_index][sample_index] = (INT16S)sine_value;
-
-            xarg = xarg + xarg_inc; //Increments counter
-            xarg = xarg & ABS_VAL_MASK; //Masks sign bit for roll over
-            sample_index++;
-        }
-        sample_index = 0;
-        DB1_TURN_OFF();
-        }
-
-        else{
-            mode = SinePend(0, &os_err);
-        }
-
-        DB1_TURN_ON();
-    }
+		DB1_TURN_ON();
+	}
 
 }
 
@@ -266,73 +262,66 @@ static void SineOutputTask(void *p_arg){
  *
  ******************************************************************************/
 
-    static void  SquareOutputTask(void *p_arg){
+static void  SquareOutputTask(void *p_arg){
+	OS_ERR os_err;
+	INT16U freq;
+	INT16U mod;
+	INT32U duty;
+	INT8U vol;
+	STATE mode;
+	(void) p_arg;
 
-        OS_ERR os_err;
-        INT16U freq;
-        INT16U mod;
-        INT32U duty;
-        INT8U vol;
-        STATE mode;
-        (void) p_arg;
+	while(1){
 
-        while(1){
+		mode = UIStateGet();
 
+		DB0_TURN_ON();
 
-            mode = UIStateGet();
+		if(mode == PULSETRAIN_MODE){
+			freq = UIFreqGet();
+			vol = UILevGet();
 
+			if(freq <= LOWEST_THREHOLD_FREQ){
+				//System Clock, Centered Pulse, Prescaler
+				FTM3->SC = FTM_SC_CLKS(1)|FTM_SC_CPWMS(1)|FTM_SC_PS(LOW_FREQ_PRESCALAR);
 
-            DB0_TURN_ON();
+				//PWM polarity
+				FTM3->CONTROLS[3].CnSC = FTM_CnSC_ELSA(0)|FTM_CnSC_ELSB(1);
 
-            if(mode == PULSETRAIN_MODE){
-                freq = UIFreqGet();
-                vol = UILevGet();
+				//Calculates wanted mod (Tp = Tsys*2*mod)
+				mod = TWICE_SCALED_CLK_FREQ/(freq*2);
 
-                if(freq <= LOWEST_THREHOLD_FREQ){
-                    //System Clock, Centered Pulse, Prescaler
-                    FTM3->SC = FTM_SC_CLKS(1)|FTM_SC_CPWMS(1)|FTM_SC_PS(LOW_FREQ_PRESCALAR);
+				//Sticks value in FTM's mod register
+				FTM3->MOD = FTM_MOD_MOD(mod);
+			}
 
-                    //PWM polarity
-                    FTM3->CONTROLS[3].CnSC = FTM_CnSC_ELSA(0)|FTM_CnSC_ELSB(1);
+			else if((freq > LOWEST_THREHOLD_FREQ) && (freq <= UPPER_THRESHOLD_FREQ)){
+				FTM3->SC = FTM_SC_CLKS(1)|FTM_SC_CPWMS(1)|FTM_SC_PS(MID_FREQ_PRESCALAR);
+				FTM3->CONTROLS[3].CnSC = FTM_CnSC_ELSA(0)|FTM_CnSC_ELSB(1);
+				mod = SCALED_CLK_FREQ/(freq*2);
+				FTM3->MOD = FTM_MOD_MOD(mod);
+			}
 
-                    //Calculates wanted mod (Tp = Tsys*2*mod)
-                    mod = TWICE_SCALED_CLK_FREQ/(freq*2);
+			else{
+				FTM3->SC = FTM_SC_CLKS(1)|FTM_SC_CPWMS(1)|FTM_SC_PS(HIGH_FREQ_PRESCALER);
+				FTM3->CONTROLS[3].CnSC = FTM_CnSC_ELSA(0)|FTM_CnSC_ELSB(1);
+				mod = UNSCALED_CLK_FREQ/(freq*2);
+				FTM3->MOD = FTM_MOD_MOD(mod);
 
-                    //Sticks value in FTM's mod register
-                    FTM3->MOD = FTM_MOD_MOD(mod);
-                }
+			}
 
+			//Computes duty cycle based on volume and inputs
+			duty = ((INT32U)mod * (INT32U)vol) / MAX_VOL;
+			//Set signal pulse width (duty cycle)
+			FTM3->CONTROLS[3].CnV = FTM_CnV_VAL((INT16U)duty);
 
-                else if((freq > LOWEST_THREHOLD_FREQ) && (freq <= UPPER_THRESHOLD_FREQ)){
-                    FTM3->SC = FTM_SC_CLKS(1)|FTM_SC_CPWMS(1)|FTM_SC_PS(MID_FREQ_PRESCALAR);
-                    FTM3->CONTROLS[3].CnSC = FTM_CnSC_ELSA(0)|FTM_CnSC_ELSB(1);
-                    mod = SCALED_CLK_FREQ/(freq*2);
-                    FTM3->MOD = FTM_MOD_MOD(mod);
-                }
-
-                else{
-                    FTM3->SC = FTM_SC_CLKS(1)|FTM_SC_CPWMS(1)|FTM_SC_PS(HIGH_FREQ_PRESCALER);
-                    FTM3->CONTROLS[3].CnSC = FTM_CnSC_ELSA(0)|FTM_CnSC_ELSB(1);
-                    mod = UNSCALED_CLK_FREQ/(freq*2);
-                    FTM3->MOD = FTM_MOD_MOD(mod);
-
-                }
-
-                //Computes duty cycle based on volume and inputs
-                duty = ((INT32U)mod * (INT32U)vol) / MAX_VOL;
-                //Set signal pulse width (duty cycle)
-                FTM3->CONTROLS[3].CnV = FTM_CnV_VAL((INT16U)duty);
-
-                DB0_TURN_OFF();
-                }
-            else{
-
-                mode = SqaurePend(0, &os_err);
-
-            }
-            }
-
-    }
+			DB0_TURN_OFF();
+			}
+		else{
+			mode = SquarePend(0, &os_err);
+		}
+	}
+}
 
 /****************************************************************************************
  * DMA Interrupt Handler for the sample stream
@@ -340,14 +329,14 @@ static void SineOutputTask(void *p_arg){
  ***************************************************************************************/
 
 void DMA0_DMA16_IRQHandler(void){
-    OS_ERR os_err;
-    OSIntEnter();
-    DB1_TURN_ON();
-    DMA0->CINT = DMA_CINT_CINT(DMA_OUT_CH);
-    dmaInBlockRdy.index ^= 1;                            //toggle buffer index
-    OSSemPost(&(dmaInBlockRdy.flag),OS_OPT_POST_1,&os_err);
-    DB1_TURN_OFF();
-    OSIntExit();
+	OS_ERR os_err;
+	OSIntEnter();
+	DB1_TURN_ON();
+	DMA0->CINT = DMA_CINT_CINT(DMA_OUT_CH);
+	dmaInBlockRdy.index ^= 1;                            //toggle buffer index
+	OSSemPost(&(dmaInBlockRdy.flag),OS_OPT_POST_1,&os_err);
+	DB1_TURN_OFF();
+	OSIntExit();
 }
 
 /****************************************************************************************
@@ -355,6 +344,7 @@ void DMA0_DMA16_IRQHandler(void){
 * 08/30/2015 TDM
 ***************************************************************************************/
 static INT8U DMAPend(OS_TICK tout, OS_ERR *os_err_ptr){
-        OSSemPend(&(dmaInBlockRdy.flag), tout, OS_OPT_PEND_BLOCKING,(void *)0, os_err_ptr);
-        return dmaInBlockRdy.index;
- }
+	OSSemPend(&(dmaInBlockRdy.flag), tout, OS_OPT_PEND_BLOCKING,(void *)0, os_err_ptr);
+	return dmaInBlockRdy.index;
+}
+
