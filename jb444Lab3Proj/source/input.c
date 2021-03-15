@@ -5,8 +5,8 @@
  *  Last Edited On: 3/14/2021
  *      Author: August Byrne
  *
- *  Edited by Jacob Bindernagel
- *  - Added semaphores to let the output tasks pend
+ *  Edited by Jacob Bindernagel 3/14/2021
+ *  - Added semaphore flags for the output tasks to pend on
  */
 #include "app_cfg.h"
 #include "os.h"
@@ -124,6 +124,13 @@ void inputInit(void){
 
 }
 
+/******************************************************************************
+ * inKeyTask
+ *
+ * Works with multiple semaphores and writes keyPresses to a buffer
+ * Pends on keypress with KeyPend
+ * August Byrne, 03/15/2021
+ *****************************************************************************/
 static void inKeyTask(void *p_arg){
 	OS_ERR os_err;
 	INT8U kchar = 0;
@@ -196,6 +203,13 @@ static void inKeyTask(void *p_arg){
 	}
 }
 
+/******************************************************************************
+ * inKeyTask
+ *
+ * Works with a semaphore and writes touch pad presses to a buffer
+ * Pends on the touch sensor with TSIPend
+ * August Byrne, 03/15/2021
+ *****************************************************************************/
 static void inLevelTask(void *p_arg){
 	OS_ERR os_err;
 	INT16U tsense;
