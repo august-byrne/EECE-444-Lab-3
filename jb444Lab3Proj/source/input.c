@@ -2,7 +2,7 @@
  * input.c
  *  This is all of the input for the function generator of EECE444 Lab 3
  *  Created on: Mar 3, 2021
- *  Last Edited On: 3/14/2021
+ *  Last Edited On: 3/15/2021
  *      Author: August Byrne
  *
  *  Edited by Jacob Bindernagel 3/14/2021
@@ -63,13 +63,15 @@ static void inLevelTask(void *p_arg);
 INT8U* getInKeyPend(INT8U pendMode, INT16U tout, OS_ERR *os_err);
 INT8U getInLevPend(INT16U tout, OS_ERR *os_err);
 STATE getInStatePend(INT16U tout, OS_ERR *os_err);
+STATE SinePend(INT16U tout, OS_ERR *os_err);
+STATE SquarePend(INT16U tout, OS_ERR *os_err);
 
 /*****************************************************************************************
  * Mutex & Semaphores
 *****************************************************************************************/
-KEY_BUFFER inKeyBuffer;
-TSI_BUFFER inLevBuffer;
-CTRL_STATE CtrlState;
+static KEY_BUFFER inKeyBuffer;
+static TSI_BUFFER inLevBuffer;
+static CTRL_STATE CtrlState;
 
 /*****************************************************************************************
 * input()
@@ -140,6 +142,7 @@ static void inKeyTask(void *p_arg){
 	while(1){
 		DB3_TURN_OFF();
 		kchar = KeyPend(0, &os_err);
+		DB3_TURN_ON();
 		switch (kchar){
 		case DC1:		//'A' changes CtrlState semaphore to sine wave mode
 			for (int i = 0; i < KEY_LEN; i++){
@@ -178,6 +181,11 @@ static void inKeyTask(void *p_arg){
 		break;
 		case '#':		//enter has been pressed
 			OSSemPost(&(inKeyBuffer.enter),OS_OPT_POST_NONE,&os_err);
+			OSTimeDly(8, OS_OPT_TIME_PERIODIC, &os_err); // delay 8 ms so that the value can be recorded before it is wiped
+			for (int i = 0; i < KEY_LEN; i++){
+				inKeyBuffer.buffer[i] = 0;
+			}
+			OSSemPost(&(inKeyBuffer.flag),OS_OPT_POST_NONE,&os_err);
 		break;
 		default:		//it is a number to add to the freq semaphore
 			if(inKeyBuffer.buffer[KEY_LEN-1] == 0){
@@ -199,7 +207,6 @@ static void inKeyTask(void *p_arg){
 				OSSemPost(&(inKeyBuffer.flag),OS_OPT_POST_NONE,&os_err);
 			}else{}
 		}
-		DB3_TURN_ON();
 	}
 }
 
@@ -240,10 +247,12 @@ INT8U* getInKeyPend(INT8U pendMode, INT16U tout, OS_ERR *os_err){
 	}else{}
 	return inKeyBuffer.buffer;
 }
+
 INT8U getInLevPend(INT16U tout, OS_ERR *os_err){
 	OSSemPend(&(inLevBuffer.flag),tout, OS_OPT_PEND_BLOCKING, (CPU_TS *)0, os_err);
 	return inLevBuffer.buffers;
 }
+
 STATE getInStatePend(INT16U tout, OS_ERR *os_err){
 	OSSemPend(&(CtrlState.flag),tout, OS_OPT_PEND_BLOCKING, (CPU_TS *)0, os_err);
 	return CtrlState.buffer;
@@ -253,7 +262,8 @@ STATE SinePend(INT16U tout, OS_ERR *os_err){
     OSSemPend(&(CtrlState.flag_sine),tout, OS_OPT_PEND_BLOCKING, (CPU_TS *)0, os_err);
     return CtrlState.buffer;
 }
-STATE SqaurePend(INT16U tout, OS_ERR *os_err){
+
+STATE SquarePend(INT16U tout, OS_ERR *os_err){
     OSSemPend(&(CtrlState.flag_square),tout, OS_OPT_PEND_BLOCKING, (CPU_TS *)0, os_err);
     return CtrlState.buffer;
 }
