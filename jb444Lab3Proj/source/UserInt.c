@@ -16,8 +16,6 @@
 #include "uCOSKey.h"
 #include "input.h"
 
-#define LOWADDR (INT32U) 0x00000000			//low memory address
-#define HIGHADRR (INT32U) 0x001FFFFF		//high memory address
 #define ASCII_SHIFT 48
 #define MAX_DIGITS 5
 
@@ -60,18 +58,10 @@ static const INT8U DutyCycle[21] = {0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55
 * Rachel Givens 03/14/2021
 *******************************************************************************/
 void UIInit(void){
+
     OS_ERR os_err;
-    INT8U math_val;
 
     LcdInit();
-
-	//Initial program checksum, which is displayed on the second row of the LCD
-	math_val = CalcChkSum((INT8U *)LOWADDR,(INT8U *)HIGHADRR);
-	LcdDispString(LCD_ROW_2,LCD_COL_1,APP_LAYER_CHKSUM,"CS: ");
-	LcdDispByte(LCD_ROW_2,LCD_COL_4,APP_LAYER_CHKSUM,(INT8U)math_val);
-	LcdDispByte(LCD_ROW_2,LCD_COL_6,APP_LAYER_CHKSUM,(INT8U)(math_val << 8));	//display first byte then <<8 and display next byte
-	OSTimeDly(3000, OS_OPT_TIME_PERIODIC, &os_err); // delay 3000 ms as per spec
-	LcdDispClear(APP_LAYER_CHKSUM);
 
     OSTaskCreate(&uiFreqTaskTCB,
                  "UIF Task",
@@ -154,6 +144,7 @@ void uiFreqTask(void *p_arg){
         DB3_TURN_OFF();
         inKeyBufferFreq = getInKeyPend(1, 0, &os_err);
         LcdDispClear(APP_LAYER_TYPE);
+        LcdDispClear(APP_LAYER_CHKSUM);
         for (int i = 0; i < KEY_LEN; i++){
             if (inKeyBufferFreq[i] != 0){
                 LcdDispChar(LCD_ROW_2,5-i,APP_LAYER_FREQ,inKeyBufferFreq[i]);
