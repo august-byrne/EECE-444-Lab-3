@@ -36,10 +36,6 @@ static void uiDispTask(void *p_arg);
 static void uiVolTask(void *p_arg);
 static void uiStateTask(void *p_arg);
 
-INT16U UIFreqGet(void);
-INT8U UILevGet(void);
-STATE UIStateGet(void);
-
 static STATE StateCntrl = WAITING_MODE;
 static INT8U Lev = 0;
 static INT16U Frequency = 0;

@@ -2,7 +2,7 @@
  * input.c
  *  This is all of the input for the function generator of EECE444 Lab 3
  *  Created on: Mar 3, 2021
- *  Last Edited On: 3/15/2021
+ *  Last Edited On: 3/16/2021
  *      Author: August Byrne
  *
  *  Edited by Jacob Bindernagel 3/14/2021
@@ -40,7 +40,6 @@ typedef struct{
     OS_SEM flag_sine;
 }CTRL_STATE;
 
-
 /*****************************************************************************************
 * Allocate task control blocks
 *****************************************************************************************/
@@ -57,14 +56,8 @@ static CPU_STK InLevelTaskStartStk[APP_CFG_INLEVEL_STK_SIZE];
 * Task Function Prototypes.
 *   - Private if in the same module as startup task. Otherwise public.
 *****************************************************************************************/
-void inputInit(void);
 static void inKeyTask(void *p_arg);
 static void inLevelTask(void *p_arg);
-INT8U* getInKeyPend(INT8U pendMode, INT16U tout, OS_ERR *os_err);
-INT8U getInLevPend(INT16U tout, OS_ERR *os_err);
-STATE getInStatePend(INT16U tout, OS_ERR *os_err);
-STATE SinePend(INT16U tout, OS_ERR *os_err);
-STATE SquarePend(INT16U tout, OS_ERR *os_err);
 
 /*****************************************************************************************
  * Mutex & Semaphores
@@ -76,7 +69,6 @@ static CTRL_STATE CtrlState;
 /*****************************************************************************************
 * input()
 *****************************************************************************************/
-
 //inputInit – Executes all required initialization for the resources in input.c
 void inputInit(void){
 	OS_ERR os_err;
