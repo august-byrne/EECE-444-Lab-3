@@ -19,9 +19,13 @@
 #include "K65TWR_ClkCfg.h"
 #include "K65TWR_GPIO.h"
 #include "LcdLayered.h"
+#include "MemTest.h"
 #include "input.h"
 #include "UserInt.h"
 #include "OutputModule.h"
+
+#define LOWADDR (INT32U) 0x00000000			//low memory address
+#define HIGHADRR (INT32U) 0x001FFFFF		//high memory address
 
 /*****************************************************************************************
 * Allocate task control blocks
@@ -75,7 +79,7 @@ void main(void) {
 *****************************************************************************************/
 static void AppStartTask(void *p_arg) {
 	OS_ERR os_err;
-
+	INT8U math_val;
 	(void)p_arg;                        /* Avoid compiler warning for unused variable   */
 
 	OS_CPU_SysTickInitFreq(SYSTEM_CLOCK);
@@ -86,9 +90,17 @@ static void AppStartTask(void *p_arg) {
 	 * will not have accurate CPU load information                                       */
 //    OSStatTaskCPUUsageInit(&os_err);
 
+	LcdInit();
+	//Initial program checksum, which is displayed on the second row of the LCD
+	math_val = CalcChkSum((INT8U *)LOWADDR,(INT8U *)HIGHADRR);
+	LcdDispString(LCD_ROW_2,LCD_COL_1,APP_LAYER_CHKSUM,"CS: ");
+	LcdDispByte(LCD_ROW_2,LCD_COL_4,APP_LAYER_CHKSUM,(INT8U)math_val);
+	LcdDispByte(LCD_ROW_2,LCD_COL_6,APP_LAYER_CHKSUM,(INT8U)(math_val << 8));	//display first byte then <<8 and display next byte
+	OSTimeDly(3000, OS_OPT_TIME_PERIODIC, &os_err); // delay 3000 ms as per spec
+	LcdDispClear(APP_LAYER_CHKSUM);
+
 	GpioDBugBitsInit();
 	inputInit();
-	OSTimeDly(3000, OS_OPT_TIME_PERIODIC, &os_err); // delay 3000 ms for inputInit() to deal with displaying the checksum
 	UIInit();
 	OutputInit();
 
